@@ -28,6 +28,12 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
           >
             Feedback
           </Link>
+          <Link
+            href="/admin/login"
+            className="text-on-surface-variant transition-colors hover:text-secondary"
+          >
+            Admin access
+          </Link>
           <span className="hidden items-center gap-1.5 text-xs font-medium text-on-surface-variant lg:flex">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
             Live Monitoring • Updated 2m ago
