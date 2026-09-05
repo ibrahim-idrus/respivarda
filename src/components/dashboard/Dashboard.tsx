@@ -5,6 +5,7 @@ import dynamic from "next/dynamic";
 import { Crosshair, MapPin } from "@phosphor-icons/react";
 import Header from "./Header";
 import KaltimComparison from "./KaltimComparison";
+import TelegramConnect from "./TelegramConnect";
 import { useGeolocation } from "@/src/hooks/useGeolocation";
 import { regionForPoint } from "@/src/lib/geo/kaltim";
 
@@ -166,6 +167,8 @@ export default function Dashboard() {
         </section>
 
         <KaltimComparison byCity={byCity} loading={loading} selectedKey={selectedKey} onSelect={setSelectedKey} />
+
+        <TelegramConnect />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
           <div className="rounded-2xl border p-6 text-sm text-on-surface-variant">
