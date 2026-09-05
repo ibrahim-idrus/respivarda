@@ -13,7 +13,7 @@
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
     "seed:feedback": "tsx --env-file=.env src/db/seed-feedback.ts",
-    "cron:fetch-air": "curl -s http://localhost:3000/api/cron/fetch-air"
+    "cron:fetch-air": "curl -s -H \"Authorization: Bearer $CRON_SECRET\" http://localhost:3000/api/cron/fetch-air"
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.13.1",

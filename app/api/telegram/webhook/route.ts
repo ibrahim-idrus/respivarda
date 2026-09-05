@@ -1,7 +1,7 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/src/db";
 import { conversationStates, healthLogs, userProfiles, users } from "@/src/db/schema";
-import { isValidWebhookSecret, sendTelegramMessage, escapeHtml } from "@/lib/telegram";
+import { isValidWebhookSecret, sendTelegramMessage, withTyping, escapeHtml } from "@/lib/telegram";
 import { formatAqiCard, formatRecommendationBlock } from "@/lib/telegram/format";
 import { evaluateRuleEngine } from "@/lib/airvisual";
 import { getAqiForCoords } from "@/lib/airvisual/cache";
@@ -213,6 +213,13 @@ async function showMainMenu(chatId: number, intro?: string) {
 }
 
 async function runInitialAqi(chatId: number, lat: number, lon: number) {
+  await sendTelegramMessage(chatId, "⏳ <b>Mengambil data udara...</b>\n<i>Mohon tunggu, saya cek stasiun terdekat.</i>");
+  await withTyping(chatId, async () => {
+    await runInitialAqiBody(chatId, lat, lon);
+  });
+}
+
+async function runInitialAqiBody(chatId: number, lat: number, lon: number) {
   const { cached } = await getAqiForCoords(lat, lon);
   if (!cached) {
     await setState(chatId, "onboarded");
@@ -459,8 +466,7 @@ async function handleMenu(chatId: number, text: string) {
     }
     try {
       await runInitialAqi(chatId, user.latitude, user.longitude);
-    } catch (err) {
-      console.error("recommendation error:", err instanceof Error ? err.message : "unknown");
+    } catch {
       await sendTelegramMessage(chatId, "Rekomendasi belum tersedia saat ini.");
       await showMainMenu(chatId);
     }
@@ -515,8 +521,7 @@ async function handleLocation(chatId: number, loc: TelegramLocation) {
   }
   try {
     await runInitialAqi(chatId, loc.latitude as number, loc.longitude as number);
-  } catch (err) {
-    console.error("recommendation error:", err instanceof Error ? err.message : "unknown");
+  } catch {
     await setState(chatId, "onboarded");
     await sendTelegramMessage(chatId, "Lokasi Anda tersimpan. Rekomendasi belum tersedia saat ini.", REMOVE_KEYBOARD);
     await showMainMenu(chatId);
@@ -549,8 +554,7 @@ export async function POST(req: Request) {
   }
   try {
     await processUpdate(update);
-  } catch (err) {
-    console.error("telegram webhook error:", err instanceof Error ? err.message : "unknown");
+  } catch {
     return Response.json({ ok: false }, { status: 500 });
   }
   return Response.json({ ok: true });

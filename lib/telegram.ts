@@ -20,6 +20,31 @@ export function escapeHtml(s: string): string {
   return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
 }
 
+export async function sendChatAction(
+  chatId: number | string,
+  action: "typing" | "upload_photo" | "find_location" = "typing"
+): Promise<void> {
+  try {
+    await fetch(`https://api.telegram.org/bot${getToken()}/sendChatAction`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({ chat_id: chatId, action }),
+    });
+  } catch {
+    // Indikator mengetik bersifat best-effort, kegagalan diabaikan.
+  }
+}
+
+export async function withTyping<T>(chatId: number | string, work: () => Promise<T>): Promise<T> {
+  const timer = setInterval(() => void sendChatAction(chatId, "typing"), 4000);
+  void sendChatAction(chatId, "typing");
+  try {
+    return await work();
+  } finally {
+    clearInterval(timer);
+  }
+}
+
 export async function sendTelegramMessage(
   chatId: number | string,
   text: string,

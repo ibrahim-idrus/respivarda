@@ -15,9 +15,17 @@ export type RecommendationInput = {
   current: NormalizedAirQuality;
   rule: RuleEngineResult;
   kind: "alert" | "insight" | "none";
+  atRisk?: boolean;
   profile?: { age?: number | null; gender?: string | null; medicalHistory?: string[] | null } | null;
   healthLog?: { physicalActivity?: string | null; avgSleepHours?: number | string | null; symptoms?: string[] | null } | null;
 };
+
+export function isAtRiskUser(profile?: RecommendationInput["profile"]): boolean {
+  const history = profile?.medicalHistory ?? [];
+  if (history.length > 0) return true;
+  if (typeof profile?.age === "number" && (profile.age < 5 || profile.age > 65)) return true;
+  return false;
+}
 
 function fallback(input: RecommendationInput): AIRecommendation {
   const { current, rule } = input;
@@ -45,7 +53,10 @@ function fallback(input: RecommendationInput): AIRecommendation {
 }
 
 function buildPrompt(input: RecommendationInput): string {
-  const { current, rule, kind, profile, healthLog } = input;
+  const { current, rule, kind, atRisk, profile, healthLog } = input;
+  const riskLine = atRisk
+    ? "- Kelompok: BERISIKO (memiliki riwayat penyakit pernapasan dan/atau usia rentan). Naikkan urgensi satu tingkat dibanding populasi umum."
+    : "- Kelompok: umum (tanpa riwayat penyakit tercatat).";
   const pipeline = `PIPELINE: IQAir nearest_city → Data Processing (validasi freshness/kelengkapan) → US AQI Processing → Threshold & Rule Engine (kategori ${rule.category}, status ${rule.status}, action ${rule.action}, severity ${rule.severity}, decision ${rule.alertDecision}, reason ${rule.reason}) → Alert & Insight Engine (kind ${kind}) → ${kind === "alert" ? "Proactive Alert" : kind === "insight" ? "Insight" : "No notification"} → Statistics/History`;
   return `Kamu adalah Respivarda. Hasilkan insight & preventive recommendation (bahasa Indonesia).
 
@@ -56,8 +67,10 @@ DATA KUALITAS UDARA:
 - AQI US: ${current.usAqi} kategori ${current.aqiCategory}, freshness ${current.freshness}, measured_at ${current.measuredAt.toISOString()}
 - Polutan utama: ${current.mainPollutant}
 
-DATA PENGGUNA (opsional):
-- Profil: usia ${profile?.age ?? "-"}, gender ${profile?.gender ?? "-"}, riwayat ${profile?.medicalHistory?.join(", ") || "-"}
+DATA PENGGUNA (minimisasi, tanpa nama/identitas):
+- Usia ${profile?.age ?? "-"}, gender ${profile?.gender ?? "-"}
+- Jumlah riwayat penyakit pernapasan: ${(profile?.medicalHistory ?? []).length}${(profile?.medicalHistory ?? []).length > 0 ? ` (${profile?.medicalHistory?.slice(0, 3).join(", ")})` : ""}
+${riskLine}
 - Health log: aktivitas ${healthLog?.physicalActivity ?? "-"}, tidur ${healthLog?.avgSleepHours ?? "-"} jam, gejala ${healthLog?.symptoms?.join(", ") || "-"}
 
 TUGAS: keluarkan JSON { insight: string (1 kalimat), recommendation: string (2-4 kalimat preventif personal, TANPA bullet/numbering/emoji, plain sentences), risk_level: "LOW"|"MODERATE"|"HIGH"|"CRITICAL" }. Hanya JSON.`;
@@ -83,13 +96,15 @@ export async function generateAlertInsightRecommendation(params: {
   profile?: RecommendationInput["profile"];
   healthLog?: RecommendationInput["healthLog"];
 }): Promise<{ kind: "alert" | "insight" | "none"; insight: string | null; recommendation: string | null; ai: AIRecommendation | null }> {
+  const atRisk = isAtRiskUser(params.profile);
+  const effectiveSeverity = atRisk && params.rule.severity === 1 ? 2 : params.rule.severity;
   const kind: "alert" | "insight" | "none" =
-    params.rule.alertDecision === "trigger" && params.rule.severity >= 2
+    params.rule.alertDecision === "trigger" && effectiveSeverity >= 2
       ? "alert"
       : params.rule.alertDecision === "trigger" && params.rule.severity === 1
         ? "insight"
         : "none";
   if (kind === "none") return { kind, insight: null, recommendation: null, ai: null };
-  const ai = await generateRecommendation({ current: params.current, rule: params.rule, kind, profile: params.profile, healthLog: params.healthLog });
+  const ai = await generateRecommendation({ current: params.current, rule: params.rule, kind, atRisk, profile: params.profile, healthLog: params.healthLog });
   return { kind, insight: ai.insight, recommendation: ai.recommendation, ai };
 }

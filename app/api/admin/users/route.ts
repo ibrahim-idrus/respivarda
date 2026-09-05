@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { and, desc, eq, isNotNull, sql } from "drizzle-orm";
 import { NextResponse } from "next/server";
 import { db } from "@/src/db";
+import { requireAdmin } from "@/lib/auth";
 import {
   conversationStates,
   locations,
@@ -12,7 +13,10 @@ import {
   users,
 } from "@/src/db/schema";
 
-export async function GET() {
+export async function GET(req: Request) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+  }
   try {
     const [rows, totalCountResult, telegramCountResult] = await Promise.all([
       db
@@ -108,10 +112,9 @@ export async function GET() {
         awaitingLocationUsers,
       },
     });
-  } catch (err) {
-    console.error("Failed to fetch admin users:", err);
+  } catch {
     return NextResponse.json(
-      { error: "Gagal memuat data pengguna", details: err instanceof Error ? err.message : String(err) },
+      { error: "Gagal memuat data pengguna" },
       { status: 500 }
     );
   }

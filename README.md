@@ -37,3 +37,17 @@ Untuk menjalankan aplikasi ini diperlukan beberapa kredensial penting, diantaran
 7. ADMIN_*
 
 Install dependensi dengan npm install (atau sesuaikan dengan package manager masing-masing). Sinkronkan skema database dengan npm run db:push untuk pengembangan, atau npm run db:migrate untuk produksi. Untuk pengembangan jalankan npm run dev, untuk produksi jalankan npm run build lalu npm start. Terakhir,
+
+# Kebijakan Retensi Data
+
+**Definisi pengguna nonaktif.** Pengguna dinyatakan nonaktif jika selama periode berjalan tidak ada satu pun aktivitas berikut: mengirim pesan ke bot Telegram (termasuk perintah maupun share location), membuka dashboard web dengan sesi terhubung, atau menerima pembaruan lokasi via cron fan-out. Aktivitas terakhir dicatat dari kolom `updatedAt` pada data pengguna.
+
+**Batas simpan.**
+
+- **Koordinat presisi penuh** (±1 meter, setara alamat rumah): didegradasi ke presisi kota (2 desimal, ±1 km) 90 hari setelah pengguna dinyatakan nonaktif. Degradasi, bukan penghapusan total, agar data historis kota tetap berguna tanpa bisa dilacak ke individu.
+- **Riwayat penyakit, usia, dan profil kesehatan**: dihapus permanen 1 tahun setelah pengguna dinyatakan nonaktif.
+- **Riwayat kualitas udara dan peringatan** (data agregat per kota, tanpa identitas pengguna): disimpan tanpa batas untuk keperluan statistik, evaluasi ambang, dan penelitian.
+- **Log pengiriman notifikasi** (kapan pesan terkirim ke siapa): disimpan 6 bulan untuk audit dan penyelesaian sengketa, lalu dihapus permanen.
+- **Data umpan balik (feedback)**: nama dan kontak pelapor dihapus 1 tahun setelah laporan berstatus resolved, isi laporan anonim dipertahankan.
+
+**Hak pengguna.** Pengguna dapat meminta penghapusan seluruh datanya kapan pun dengan menghubungi admin. Permintaan dipenuhi maksimal 14 hari kerja. Implementasi penghapusan dan degradasi otomatis terjadwal menyusul; sampai saat itu penegakan dilakukan manual oleh admin.

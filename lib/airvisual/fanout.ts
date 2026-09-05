@@ -1,4 +1,4 @@
-import { desc, eq, isNotNull } from "drizzle-orm";
+import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/src/db";
 import {
   alertEvents,
@@ -11,7 +11,7 @@ import {
 import { evaluateRuleEngine } from "@/lib/airvisual/rule-engine";
 import type { CachedAqi } from "@/lib/airvisual/cache";
 import { RELEVANCE_RADIUS_KM } from "@/lib/airvisual/cache";
-import { generateRecommendation } from "@/lib/ai/recommendation";
+import { generateRecommendation, isAtRiskUser } from "@/lib/ai/recommendation";
 import { formatAqiCard, formatRecommendationBlock } from "@/lib/telegram/format";
 import { sendTelegramMessage } from "@/lib/telegram";
 import type { NormalizedAirQuality } from "@/lib/airvisual/types";
@@ -37,13 +37,19 @@ function coordsToNormalized(cached: CachedAqi): NormalizedAirQuality {
 }
 
 async function lastAlertAt(userId: string, locationId: string): Promise<Date | null> {
+  const [alert] = await db
+    .select({ id: alertEvents.id })
+    .from(alertEvents)
+    .where(eq(alertEvents.locationId, locationId))
+    .orderBy(desc(alertEvents.triggeredAt))
+    .limit(1);
+  if (!alert) return null;
   const [row] = await db
     .select({ sentAt: notificationDeliveries.sentAt, createdAt: notificationDeliveries.createdAt })
     .from(notificationDeliveries)
-    .where(eq(notificationDeliveries.userId, userId))
+    .where(and(eq(notificationDeliveries.userId, userId), eq(notificationDeliveries.alertEventId, alert.id)))
     .orderBy(desc(notificationDeliveries.createdAt))
     .limit(1);
-  void locationId;
   return row?.sentAt ?? row?.createdAt ?? null;
 }
 
@@ -86,6 +92,12 @@ export async function fanoutLocationAlert(
     }
 
     const current = coordsToNormalized(cached);
+    const [profile] = await db
+      .select({ age: userProfiles.age, gender: userProfiles.gender, medicalHistory: userProfiles.medicalHistory })
+      .from(userProfiles)
+      .where(eq(userProfiles.userId, user.id))
+      .limit(1);
+    const atRisk = isAtRiskUser(profile ?? null);
     const rule = evaluateRuleEngine({
       current,
       previous: null,
@@ -93,17 +105,13 @@ export async function fanoutLocationAlert(
       now,
       cooldownMinutes: ALERT_COOLDOWN_MINUTES,
     });
-    if (rule.alertDecision !== "trigger" || rule.severity < 2) {
+    const effectiveSeverity = atRisk && rule.severity === 1 ? 2 : rule.severity;
+    if (rule.alertDecision !== "trigger" || effectiveSeverity < 2) {
       result.skipped += 1;
       continue;
     }
     result.triggered = true;
 
-    const [profile] = await db
-      .select({ age: userProfiles.age, gender: userProfiles.gender, medicalHistory: userProfiles.medicalHistory })
-      .from(userProfiles)
-      .where(eq(userProfiles.userId, user.id))
-      .limit(1);
     const [healthLog] = await db
       .select({
         physicalActivity: healthLogs.physicalActivity,
@@ -119,6 +127,7 @@ export async function fanoutLocationAlert(
       current,
       rule,
       kind: "alert",
+      atRisk,
       profile: profile ?? null,
       healthLog: healthLog ?? null,
     });

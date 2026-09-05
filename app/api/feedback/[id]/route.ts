@@ -3,14 +3,16 @@ export const runtime = "nodejs";
 import { eq } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/src/db";
+import { requireAdmin } from "@/lib/auth";
 import { feedback, feedbackStatusEnum } from "@/src/db/schema";
 
-// ponytail: no auth on triage mutations. ceiling: anyone can change status.
-// upgrade: clerk role check. See route.ts ponytail.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },
 ) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+  }
   const { id } = await params;
   let body: unknown;
   try {

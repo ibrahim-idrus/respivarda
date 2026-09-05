@@ -4,6 +4,7 @@ export const dynamic = "force-dynamic";
 import { count, desc, eq, sql } from "drizzle-orm";
 import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/src/db";
+import { requireAdmin } from "@/lib/auth";
 import { feedback, feedbackCategoryEnum, feedbackStatusEnum } from "@/src/db/schema";
 
 const VALID_STATUS = new Set<string>([
@@ -112,6 +113,9 @@ export async function POST(req: NextRequest) {
 }
 
 export async function GET(req: NextRequest) {
+  if (!requireAdmin(req)) {
+    return NextResponse.json({ error: "Tidak terautentikasi." }, { status: 401 });
+  }
   const sp = req.nextUrl.searchParams;
   const statusParam = sp.get("status") ?? "all";
   if (!VALID_STATUS.has(statusParam)) {

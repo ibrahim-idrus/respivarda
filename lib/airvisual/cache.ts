@@ -146,6 +146,16 @@ export async function readCache(locationId: string, ttlMinutes = CACHE_TTL_MINUT
   };
 }
 
+export async function readAllCached(ttlMinutes = CACHE_TTL_MINUTES): Promise<CachedAqi[]> {
+  const allRows = await db.select().from(locations);
+  const out: CachedAqi[] = [];
+  for (const loc of allRows) {
+    const cached = await readCache(loc.id, ttlMinutes);
+    if (cached) out.push(cached);
+  }
+  return out;
+}
+
 async function writeRecord(
   locationId: string,
   current: NormalizedAirQuality,
@@ -153,6 +163,20 @@ async function writeRecord(
   insight: { kind: "alert" | "insight" | "none"; title: string | null; body: string | null; recommendation: string | null },
   raw: unknown
 ): Promise<void> {
+  const [latest] = await db
+    .select()
+    .from(airQualityRecords)
+    .where(eq(airQualityRecords.locationId, locationId))
+    .orderBy(desc(airQualityRecords.fetchedAt))
+    .limit(1);
+  if (
+    latest &&
+    latest.measuredAt.getTime() === current.measuredAt.getTime() &&
+    latest.usAqi === current.usAqi &&
+    latest.mainPollutant === current.mainPollutant
+  ) {
+    return;
+  }
   const [record] = await db
     .insert(airQualityRecords)
     .values({
@@ -254,6 +278,7 @@ export async function refreshAllMonitored(now = new Date()): Promise<{ locationI
       const cached = await readCache(loc.id);
       results.push({ locationId: loc.id, ok: cached !== null, cached, error: message });
     }
+    await new Promise((r) => setTimeout(r, 2000));
   }
   return results;
 }

@@ -1,3 +1,4 @@
+import crypto from 'node:crypto';
 import { refreshAllMonitored } from '@/lib/airvisual/cache';
 import { fanoutLocationAlert } from '@/lib/airvisual/fanout';
 
@@ -7,9 +8,12 @@ export const maxDuration = 120;
 
 function isAuthorized(req: Request): boolean {
   const secret = process.env.CRON_SECRET;
-  if (!secret) return true;
+  if (!secret) return false;
   const auth = req.headers.get('authorization');
-  return auth === `Bearer ${secret}`;
+  if (!auth) return false;
+  const a = Buffer.from(auth);
+  const b = Buffer.from(`Bearer ${secret}`);
+  return a.length === b.length && crypto.timingSafeEqual(a, b);
 }
 
 export async function GET(req: Request) {

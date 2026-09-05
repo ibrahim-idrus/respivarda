@@ -7,6 +7,7 @@ import Header from "./Header";
 import KaltimComparison from "./KaltimComparison";
 import { useGeolocation } from "@/src/hooks/useGeolocation";
 import { regionForPoint } from "@/src/lib/geo/kaltim";
+import { aqiCategoryLabel } from "@/src/lib/aqi-category";
 
 const SmokeMap = dynamic(() => import("./SmokeMap"), {
   ssr: false,
@@ -31,7 +32,7 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    fetch("/api/air-quality?fetch=1")
+    fetch("/api/air-quality")
       .then(async (r) => {
         const j = await r.json();
         if (!r.ok) {
@@ -83,6 +84,11 @@ export default function Dashboard() {
     locate();
   }, [locate]);
 
+  const handleClearSelection = useCallback(() => {
+    setSelectedKey(null);
+    setMyAqi(null);
+  }, []);
+
   useEffect(() => {
     if (!coords) return;
     let cancelled = false;
@@ -115,7 +121,7 @@ export default function Dashboard() {
             <div className="flex flex-wrap items-start justify-between gap-3">
               <div>
                 <p className="text-sm font-bold">
-                  {myAqi ? `Lokasi saya: ${myAqi.city} • AQI ${myAqi.usAqi} ${myAqi.aqiCategory.replaceAll("_", " ")}` : selected ? `Lokasi terpilih: ${selected.city} • AQI ${selected.usAqi}` : "Memuat lokasi pantau"}
+                  {myAqi ? `Lokasi saya: ${myAqi.city} • AQI ${myAqi.usAqi} ${aqiCategoryLabel(myAqi.aqiCategory)}` : selected ? `Lokasi terpilih: ${selected.city} • AQI ${selected.usAqi}` : "Memuat lokasi pantau"}
                 </p>
                 <p className="text-xs text-on-surface-variant">
                   {myAqi ? `Polutan utama ${myAqi.mainPollutant ?? "—"} • Data dari stasiun terdekat posisimu` : "Data dari stasiun terdekat via IQAir. Pilih kartu perbandingan untuk fokus di peta."}
@@ -157,15 +163,15 @@ export default function Dashboard() {
             </div>
             {headerAqi?.fetchedAt && (
               <div className="rounded-xl border border-surface-container bg-surface-container-lowest px-3 py-2 text-xs">
-                <p className="font-bold flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> {headerAqi.city} • AQI {headerAqi.usAqi} {headerAqi.category}</p>
+                <p className="font-bold flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> {headerAqi.city} • AQI {headerAqi.usAqi} {aqiCategoryLabel(headerAqi.category)}</p>
                 <p className="text-on-surface-variant">Diperbarui {new Date(headerAqi.fetchedAt).toLocaleString("id-ID")}</p>
               </div>
             )}
           </div>
-          <SmokeMap selectedKey={selectedKey} byCity={byCity} userCoords={coords} myLocation={myAqi ? { lat: myAqi.lat!, lon: myAqi.lon!, city: myAqi.city, aqiCategory: myAqi.aqiCategory } : null} />
+          <SmokeMap selectedKey={selectedKey} byCity={byCity} userCoords={coords} onClearSelection={handleClearSelection} myLocation={myAqi ? { lat: myAqi.lat!, lon: myAqi.lon!, city: myAqi.city, aqiCategory: myAqi.aqiCategory } : null} />
         </section>
 
-        <KaltimComparison byCity={byCity} loading={loading} selectedKey={selectedKey} onSelect={setSelectedKey} />
+        <KaltimComparison byCity={byCity} loading={loading} selectedKey={selectedKey} onSelect={setSelectedKey} onClearSelection={handleClearSelection} />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
           <div className="rounded-2xl border p-6 text-sm text-on-surface-variant">

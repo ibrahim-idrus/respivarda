@@ -24,10 +24,7 @@ export function evaluateRuleEngine(input: RuleEngineInput): RuleEngineResult {
   let alertDecision: RuleEngineResult['alertDecision'] = 'trigger';
   let reason = 'Initial state';
 
-  if (!persistent) {
-    alertDecision = 'suppress';
-    reason = 'Avoid unnecessary alert: condition not persistent';
-  } else if (comparison === 'increased') {
+  if (comparison === 'increased') {
     alertDecision = 'trigger';
     reason = 'Escalation: severity increased';
   } else if (comparison === 'decreased') {
@@ -38,6 +35,9 @@ export function evaluateRuleEngine(input: RuleEngineInput): RuleEngineResult {
       alertDecision = 'suppress';
       reason = 'Keep previous state: recovery not confirmed';
     }
+  } else if (!persistent) {
+    alertDecision = 'suppress';
+    reason = 'Avoid unnecessary alert: condition not persistent';
   } else {
     const last = lastAlertAt ? lastAlertAt.getTime() : 0;
     const elapsedMinutes = (now.getTime() - last) / 60_000;
