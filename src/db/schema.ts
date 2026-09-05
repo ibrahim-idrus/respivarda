@@ -43,6 +43,7 @@ export const feedbackCategoryEnum = pgEnum("feedback_category", [
   "odor_complaint",
   "map_calibration",
   "app_suggestion",
+  "app_bug",
 ]);
 export const feedbackStatusEnum = pgEnum("feedback_status", [
   "pending",

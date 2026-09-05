@@ -3,7 +3,7 @@
 import Header from "../dashboard/Header";
 import FeedbackForm from "./FeedbackForm";
 
-export default function FeedbackPage() {
+export default function FeedbackPage({ siteKey }: { siteKey: string }) {
   return (
     <>
       <Header />
@@ -14,7 +14,7 @@ export default function FeedbackPage() {
             Temukan bug atau punya saran untuk aplikasi Respivarda? Tulis di sini. Masukan bersifat anonim.
           </p>
           <div className="mt-6">
-            <FeedbackForm />
+            <FeedbackForm siteKey={siteKey} />
           </div>
           <p className="mt-4 text-xs leading-5 text-on-surface-variant">
             Contoh: tombol peta tidak merespons di HP, atau usulan filter AQI per kecamatan.

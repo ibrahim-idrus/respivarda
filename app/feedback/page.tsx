@@ -8,5 +8,5 @@ export const metadata: Metadata = {
 };
 
 export default function Page() {
-  return <FeedbackPage />;
+  return <FeedbackPage siteKey={process.env.CAPTCHA_SITE_KEY_URL ?? ""} />;
 }

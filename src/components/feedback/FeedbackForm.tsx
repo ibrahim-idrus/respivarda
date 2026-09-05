@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import Link from "next/link";
 import { useMutation } from "@tanstack/react-query";
 
@@ -8,30 +8,35 @@ const MAX_LEN = 1200;
 
 type Kind = "saran" | "bug";
 
-function genCaptcha() {
-  const a = 2 + Math.floor(Math.random() * 8);
-  const b = 2 + Math.floor(Math.random() * 8);
-  return { a, b, ans: a + b };
-}
-
-export default function FeedbackForm() {
+export default function FeedbackForm({ siteKey }: { siteKey: string }) {
   const [kind, setKind] = useState<Kind>("saran");
   const [value, setValue] = useState("");
-  const [captcha, setCaptcha] = useState(() => genCaptcha());
-  const [captchaInput, setCaptchaInput] = useState("");
-  const [captchaErr, setCaptchaErr] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
-  // ponytail: public anonymous form only collects a free-text description.
-  // ceiling: category hard-coded to app_suggestion (least-wrong bucket) and no
-  // location/device capture. upgrade: add category picker + optional location
-  // fields when the design calls for them.
+  const CATEGORY: Record<Kind, string> = {
+    saran: "app_suggestion",
+    bug: "app_bug",
+  };
+
+  useEffect(() => {
+    if (!siteKey || document.getElementById("recaptcha-v3")) return;
+    const s = document.createElement("script");
+    s.id = "recaptcha-v3";
+    s.src = `https://www.google.com/recaptcha/api.js?render=${siteKey}`;
+    s.async = true;
+    document.head.appendChild(s);
+  }, [siteKey]);
+
   const submit = useMutation({
-    mutationFn: async (description: string) => {
+    mutationFn: async (input: { kind: Kind; description: string; captchaToken: string }) => {
       const res = await fetch("/api/feedback", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ category: "app_suggestion", description }),
+        body: JSON.stringify({
+          category: CATEGORY[input.kind],
+          description: input.description,
+          captchaToken: input.captchaToken,
+        }),
       });
       if (!res.ok) throw new Error((await res.json()).error ?? "Gagal mengirim");
       return res.json() as Promise<{ id: string; reportRef: string }>;
@@ -41,19 +46,15 @@ export default function FeedbackForm() {
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!value.trim()) return;
-    if (Number(captchaInput) !== captcha.ans) {
-      setCaptchaErr("Jawaban captcha salah. Coba lagi.");
+    if (!value.trim() || submit.isPending) return;
+    const g = (window as unknown as { grecaptcha?: { execute: (k: string, o: { action: string }) => Promise<string> } }).grecaptcha;
+    if (!g) {
+      submit.mutate({ kind, description: value.trim(), captchaToken: "" });
       return;
     }
-    setCaptchaErr("");
-    setSubmitted(true);
-  };
-
-  const refreshCaptcha = () => {
-    setCaptcha(genCaptcha());
-    setCaptchaInput("");
-    setCaptchaErr("");
+    g.execute(siteKey, { action: "feedback_submit" })
+      .then((token) => submit.mutate({ kind, description: value.trim(), captchaToken: token }))
+      .catch(() => submit.mutate({ kind, description: value.trim(), captchaToken: "" }));
   };
 
   if (submitted) {
@@ -68,9 +69,6 @@ export default function FeedbackForm() {
             type="button"
             onClick={() => {
               setValue("");
-              setCaptchaInput("");
-              setCaptchaErr("");
-              setCaptcha(genCaptcha());
               setSubmitted(false);
             }}
             className="rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#005a52] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
@@ -138,46 +136,18 @@ export default function FeedbackForm() {
           <p className="text-xs leading-5 text-on-surface-variant">Jangan sertakan data pribadi.</p>
         </div>
 
-        <div className="flex flex-col gap-2 rounded-xl border border-outline-variant bg-surface-container-low px-3.5 py-3">
-          <div className="flex flex-wrap items-center justify-between gap-3">
-            <label htmlFor="captcha" className="text-sm font-semibold text-on-surface">
-              Captcha <span className="font-normal text-error" aria-hidden>*</span>
-              <span className="ml-2 font-mono text-sm font-bold text-secondary">
-                {captcha.a} + {captcha.b} = ?
-              </span>
-            </label>
-            <button
-              type="button"
-              onClick={refreshCaptcha}
-              className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-on-surface ring-1 ring-outline-variant hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
-            >
-              Acak ulang
-            </button>
-          </div>
-          <input
-            id="captcha"
-            name="captcha"
-            required
-            inputMode="numeric"
-            pattern="[0-9]*"
-            value={captchaInput}
-            onChange={(e) => {
-              setCaptchaInput(e.target.value.replace(/[^0-9]/g, ""));
-              if (captchaErr) setCaptchaErr("");
-            }}
-            placeholder="Jawaban angka"
-            className="h-10 w-full rounded-xl border border-outline-variant bg-white px-3.5 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 sm:max-w-[200px]"
-          />
-          {captchaErr ? <p className="text-xs font-medium text-error">{captchaErr}</p> : null}
-        </div>
-
-        <div className="flex justify-end">
+        <div className="flex flex-col items-end gap-2">
+          {submit.isError && (
+            <p className="text-xs font-medium text-error">
+              Gagal mengirim masukan. Coba lagi.
+            </p>
+          )}
           <button
             type="submit"
             className="rounded-full bg-secondary px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#005a52] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 disabled:opacity-40"
-            disabled={!value.trim() || !captchaInput.trim()}
+            disabled={!value.trim() || submit.isPending}
           >
-            Kirim masukan
+            {submit.isPending ? "Mengirim…" : "Kirim masukan"}
           </button>
         </div>
       </form>

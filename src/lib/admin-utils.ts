@@ -10,6 +10,7 @@ export const CATEGORY_LABEL: Record<Feedback["category"], string> = {
   odor_complaint: "Keluhan Bau",
   map_calibration: "Kalibrasi Peta",
   app_suggestion: "Saran Aplikasi",
+  app_bug: "Bug Aplikasi",
 };
 
 export const STATUS_LABEL: Record<Feedback["status"], string> = {

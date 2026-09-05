@@ -32,6 +32,22 @@ export async function POST(req: NextRequest) {
   if (typeof b.description !== "string" || !b.description.trim()) {
     return NextResponse.json({ error: "Deskripsi wajib diisi" }, { status: 400 });
   }
+  if (typeof b.captchaToken !== "string" || !b.captchaToken) {
+    return NextResponse.json({ error: "Verifikasi CAPTCHA gagal" }, { status: 400 });
+  }
+  const secret = process.env.CAPTCHA_SECRET_KEY_URL;
+  if (!secret) {
+    return NextResponse.json({ error: "CAPTCHA belum dikonfigurasi" }, { status: 500 });
+  }
+  const verifyRes = await fetch("https://www.google.com/recaptcha/api/siteverify", {
+    method: "POST",
+    headers: { "Content-Type": "application/x-www-form-urlencoded" },
+    body: new URLSearchParams({ secret, response: b.captchaToken }),
+  });
+  const verify = (await verifyRes.json()) as { success: boolean; score?: number };
+  if (!verify.success || (verify.score != null && verify.score < 0.5)) {
+    return NextResponse.json({ error: "Verifikasi CAPTCHA gagal" }, { status: 400 });
+  }
   if (b.coordinates != null) {
     const c = b.coordinates as Record<string, unknown>;
     if (typeof c.lat !== "number" || typeof c.long !== "number") {
