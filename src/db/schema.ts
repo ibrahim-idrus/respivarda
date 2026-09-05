@@ -37,6 +37,19 @@ export const alertKindEnum = pgEnum("alert_kind", ["alert", "insight", "none"]);
 export const channelEnum = pgEnum("channel", ["whatsapp", "telegram"]);
 export const deliveryStatusEnum = pgEnum("delivery_status", ["pending", "sent", "failed"]);
 export const platformEnum = pgEnum("platform", ["whatsapp", "telegram"]);
+export const feedbackCategoryEnum = pgEnum("feedback_category", [
+  "sensor_discrepancy",
+  "dense_smoke",
+  "odor_complaint",
+  "map_calibration",
+  "app_suggestion",
+]);
+export const feedbackStatusEnum = pgEnum("feedback_status", [
+  "pending",
+  "investigating",
+  "flagged",
+  "resolved",
+]);
 
 export const locations = pgTable(
   "locations",
@@ -58,8 +71,15 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    whatsappNumber: text("whatsapp_number").notNull().unique(),
+    // nullable: Telegram-first users may not have a WhatsApp number
+    whatsappNumber: text("whatsapp_number").unique(),
     telegramChatId: text("telegram_chat_id").unique(),
+    // nullable: Telegram usernames are optional and can change
+    telegramUsername: text("telegram_username"),
+    locale: text("locale").default("id").notNull(),
+    // nullable: raw coords from Telegram location share (separate from locationId)
+    latitude: doublePrecision("latitude"),
+    longitude: doublePrecision("longitude"),
     locationId: uuid("location_id").references(() => locations.id),
     createdAt: timestamp("created_at").defaultNow().notNull(),
     updatedAt: timestamp("updated_at").defaultNow().notNull(),
@@ -204,6 +224,38 @@ export const conversationStates = pgTable(
   (t) => [uniqueIndex("conversation_states_platform_external_unique").on(t.platform, t.externalId)]
 );
 
+// ponytail: reportRef generated in API (year + padded seq), not a DB sequence.
+// ceiling: concurrent inserts can race the count+1. upgrade: DB sequence or
+// gen via unique index retry. contactName/contactWhatsApp/contactTelegram are
+// free text (anonymous reports allowed) — no normalization. upgrade: real
+// contact table. affectedDevices is a text[] of device codes, not a FK —
+// devices don't exist as a table yet. upgrade: device table + FK.
+export const feedback = pgTable(
+  "feedback",
+  {
+    id: uuid("id").primaryKey().defaultRandom(),
+    reportRef: text("report_ref").notNull().unique(),
+    category: feedbackCategoryEnum("category").notNull(),
+    description: text("description").notNull(),
+    status: feedbackStatusEnum("status").notNull().default("pending"),
+    contactName: text("contact_name"),
+    contactWhatsApp: text("contact_whatsapp"),
+    contactTelegram: text("contact_telegram"),
+    locationText: text("location_text"),
+    coordinates: jsonb("coordinates").$type<{ lat: number; long: number }>(),
+    userId: uuid("user_id").references(() => users.id, { onDelete: "set null" }),
+    affectedDevices: text("affected_devices").array(),
+    triageNotes: text("triage_notes"),
+    createdAt: timestamp("created_at").defaultNow().notNull(),
+    updatedAt: timestamp("updated_at").defaultNow().notNull(),
+  },
+  (t) => [
+    index("feedback_status_idx").on(t.status),
+    index("feedback_category_idx").on(t.category),
+    index("feedback_created_idx").on(t.createdAt),
+  ]
+);
+
 export const locationsRelations = relations(locations, ({ many }) => ({
   users: many(users),
   airQualityRecords: many(airQualityRecords),
@@ -216,6 +268,11 @@ export const usersRelations = relations(users, ({ one, many }) => ({
   healthLogs: many(healthLogs),
   insights: many(personalizedInsights),
   deliveries: many(notificationDeliveries),
+  feedback: many(feedback),
+}));
+
+export const feedbackRelations = relations(feedback, ({ one }) => ({
+  user: one(users, { fields: [feedback.userId], references: [users.id] }),
 }));
 
 export const userProfilesRelations = relations(userProfiles, ({ one }) => ({

@@ -1,8 +1,8 @@
 "use client";
 
-import { useEffect, useMemo, useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { MapPin } from "@phosphor-icons/react";
+import { Crosshair, MapPin } from "@phosphor-icons/react";
 import Header from "./Header";
 import KaltimComparison from "./KaltimComparison";
 import { useGeolocation } from "@/src/hooks/useGeolocation";
@@ -11,7 +11,7 @@ import { regionForPoint } from "@/src/lib/geo/kaltim";
 const SmokeMap = dynamic(() => import("./SmokeMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[300px] items-center justify-center rounded-2xl border border-surface-container bg-surface-container-low text-sm text-on-surface-variant sm:h-[380px] lg:h-[460px]">
+    <div className="flex h-[360px] items-center justify-center rounded-2xl border border-surface-container bg-surface-container-low text-sm text-on-surface-variant sm:h-[480px] lg:h-[560px]">
       Loading map…
     </div>
   ),
@@ -20,12 +20,14 @@ const SmokeMap = dynamic(() => import("./SmokeMap"), {
 type CityEntry = { city: string; usAqi: number; aqiCategory: string; mainPollutant?: string; lat?: number; lon?: number; fetchedAt?: string };
 
 export default function Dashboard() {
-  const { coords, error: geoError } = useGeolocation();
+  const { coords, loading: geoLoading, error: geoError, locate } = useGeolocation();
   const [liveAqi, setLiveAqi] = useState<{ usAqi: number; category: string; city: string; fetchedAt: string } | null>(null);
   const [byCity, setByCity] = useState<Record<string, CityEntry> | null>(null);
   const [loading, setLoading] = useState(true);
   const [selectedKey, setSelectedKey] = useState<string | null>(null);
   const [fetchError, setFetchError] = useState<string | null>(null);
+  const [myAqi, setMyAqi] = useState<CityEntry | null>(null);
+  const [myAqiLoading, setMyAqiLoading] = useState(false);
 
   useEffect(() => {
     let cancelled = false;
@@ -72,10 +74,37 @@ export default function Dashboard() {
 
   const selected = useMemo(() => (selectedKey && byCity?.[selectedKey] ? byCity[selectedKey] : null), [byCity, selectedKey]);
   const headerAqi = useMemo(() => {
+    if (myAqi) return { city: myAqi.city, usAqi: myAqi.usAqi, category: myAqi.aqiCategory, fetchedAt: myAqi.fetchedAt ?? liveAqi?.fetchedAt ?? null };
     if (selected?.fetchedAt) return { city: selected.city, usAqi: selected.usAqi, category: selected.aqiCategory, fetchedAt: selected.fetchedAt };
     if (selected) return { city: selected.city, usAqi: selected.usAqi, category: selected.aqiCategory, fetchedAt: liveAqi?.fetchedAt ?? null };
     return liveAqi;
-  }, [selected, liveAqi]);
+  }, [selected, liveAqi, myAqi]);
+
+  const handleMyLocation = useCallback(() => locate(), [locate]);
+
+  useEffect(() => {
+    if (!coords) return;
+    let cancelled = false;
+    setMyAqiLoading(true);
+    fetch(`/api/air-quality/nearest?lat=${coords.lat}&lon=${coords.lon}`)
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok || !j?.data || cancelled) return;
+        const d = j.data;
+        setMyAqi({
+          city: d.airQualityRecord.city,
+          usAqi: d.airQualityRecord.usAqi,
+          aqiCategory: d.aqiCategory,
+          mainPollutant: d.mainPollutant ?? d.airQualityRecord.mainPollutant,
+          lat: d.airQualityRecord.latitude,
+          lon: d.airQualityRecord.longitude,
+          fetchedAt: d.storedAt,
+        });
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setMyAqiLoading(false); });
+    return () => { cancelled = true; };
+  }, [coords]);
 
   return (
     <>
@@ -83,21 +112,40 @@ export default function Dashboard() {
       <main className="flex flex-1 flex-col gap-8 pb-16">
         <section className="mx-auto w-full max-w-7xl px-4 pt-24 sm:px-6">
           <div className="rounded-2xl border border-surface-container bg-surface-container-lowest p-4 shadow-sm">
-            <p className="text-sm font-bold">
-              {selected ? `Lokasi terpilih: ${selected.city} • AQI ${selected.usAqi}` : "Memuat lokasi pantau"}
-            </p>
-            <p className="text-xs text-on-surface-variant">Data dari stasiun terdekat via IQAir. Pilih kartu perbandingan untuk fokus di peta.</p>
-            {coords && (
-              <p className="mt-2 text-xs text-on-surface-variant">
-                Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)}
-                {(() => {
-                  const r = regionForPoint(coords.lat, coords.lon);
-                  return r ? ` • Cakupan ${r}` : "";
-                })()}
-              </p>
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold">
+                  {myAqi ? `Lokasi saya: ${myAqi.city} • AQI ${myAqi.usAqi} ${myAqi.aqiCategory.replaceAll("_", " ")}` : selected ? `Lokasi terpilih: ${selected.city} • AQI ${selected.usAqi}` : "Memuat lokasi pantau"}
+                </p>
+                <p className="text-xs text-on-surface-variant">
+                  {myAqi ? `Polutan utama ${myAqi.mainPollutant ?? "—"} • Data dari stasiun terdekat posisimu` : "Data dari stasiun terdekat via IQAir. Pilih kartu perbandingan untuk fokus di peta."}
+                </p>
+                {coords && (
+                  <p className="mt-2 text-xs text-on-surface-variant">
+                    Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)}
+                    {(() => {
+                      const r = regionForPoint(coords.lat, coords.lon);
+                      return r ? ` • Cakupan ${r}` : "";
+                    })()}
+                  </p>
+                )}
+                {geoError && <p className="mt-2 text-xs font-semibold text-rose-700">{geoError}</p>}
+                {fetchError && <p className="mt-2 text-xs font-semibold text-amber-700">{fetchError}</p>}
+              </div>
+              <button
+                onClick={handleMyLocation}
+                disabled={geoLoading || myAqiLoading}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-secondary bg-secondary px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-secondary/90 disabled:opacity-60"
+              >
+                <Crosshair size={14} weight="bold" />
+                {geoLoading || myAqiLoading ? "Memuat..." : myAqi ? "Perbarui lokasi saya" : "Gunakan lokasi saya"}
+              </button>
+            </div>
+            {myAqi && (
+              <button onClick={() => setMyAqi(null)} className="mt-3 text-xs font-semibold text-secondary underline underline-offset-2">
+                Kembali ke kota terpilih
+              </button>
             )}
-            {geoError && <p className="mt-2 text-xs font-semibold text-rose-700">{geoError}</p>}
-            {fetchError && <p className="mt-2 text-xs font-semibold text-amber-700">{fetchError}</p>}
           </div>
         </section>
 
@@ -114,7 +162,7 @@ export default function Dashboard() {
               </div>
             )}
           </div>
-          <SmokeMap selectedKey={selectedKey} byCity={byCity} userCoords={coords} />
+          <SmokeMap selectedKey={selectedKey} byCity={byCity} userCoords={coords} myLocation={myAqi ? { lat: myAqi.lat!, lon: myAqi.lon!, city: myAqi.city, aqiCategory: myAqi.aqiCategory } : null} />
         </section>
 
         <KaltimComparison byCity={byCity} loading={loading} selectedKey={selectedKey} onSelect={setSelectedKey} />

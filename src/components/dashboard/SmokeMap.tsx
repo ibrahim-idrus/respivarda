@@ -1,21 +1,20 @@
 "use client";
 
 import { useMemo } from "react";
-import { Circle, MapContainer, Marker, Polygon, TileLayer, useMap } from "react-leaflet";
+import { MapContainer, Marker, Polygon, TileLayer, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
 import { Crosshair } from "@phosphor-icons/react";
 import { MONITORED_LOCATIONS } from "@/lib/airvisual/monitored-locations";
-import { KALTIM_POLYGONS, regionForPoint } from "@/src/lib/geo/kaltim";
+import { KALTIM_BOUNDARIES, regionForPoint } from "@/src/lib/geo/kaltim";
 import type { GeoState } from "@/src/hooks/useGeolocation";
 
 type SmokeMapProps = {
   selectedKey: string | null;
   byCity: Record<string, { city: string; usAqi: number; aqiCategory: string; mainPollutant?: string; lat?: number; lon?: number }> | null;
   userCoords: GeoState;
+  myLocation?: { lat: number; lon: number; city: string; aqiCategory: string } | null;
 };
-
-const STATION_COVERAGE_M = 15000;
 
 function categoryColor(cat: string): string {
   if (cat === "GOOD") return "#059669";
@@ -65,48 +64,60 @@ function FlyTo({ center }: { center: [number, number] | null }) {
   return null;
 }
 
-export default function SmokeMap({ selectedKey, byCity, userCoords }: SmokeMapProps) {
+export default function SmokeMap({ selectedKey, byCity, userCoords, myLocation }: SmokeMapProps) {
   const region = userCoords ? regionForPoint(userCoords.lat, userCoords.lon) : null;
 
   const selected = selectedKey && byCity?.[selectedKey] ? byCity[selectedKey] : null;
   const selectedLoc = useMemo(() => {
+    if (myLocation) return [myLocation.lat, myLocation.lon] as [number, number];
     if (!selected || selected.lat == null || selected.lon == null) return null;
     return [selected.lat, selected.lon] as [number, number];
-  }, [selected]);
+  }, [selected, myLocation]);
 
   const fallbackCenter: [number, number] = [-1.05, 116.9];
 
-  const activeCategory = selected?.aqiCategory ?? "MODERATE";
+  const activeCategory = myLocation?.aqiCategory ?? selected?.aqiCategory ?? "MODERATE";
   const activeColor = categoryColor(activeCategory);
   const activeDot = categoryDot(activeCategory);
+  const activeCity = myLocation?.city ?? selected?.city ?? null;
+  const activeAqi = myLocation ? byCity?.[Object.keys(byCity ?? {}).find((k) => byCity[k].city === myLocation.city) ?? ""]?.usAqi ?? selected?.usAqi ?? null : selected?.usAqi ?? null;
+
+  const polygonByCity = useMemo(() => {
+    if (!byCity) return null;
+    const byName = new Map<string, { aqiCategory: string }>();
+    for (const v of Object.values(byCity)) byName.set(v.city.toLowerCase(), v);
+    return byName;
+  }, [byCity]);
 
   return (
-    <div className="relative h-[300px] w-full overflow-hidden rounded-2xl border border-surface-container shadow-sm sm:h-[380px] lg:h-[460px]">
-      <MapContainer center={fallbackCenter} zoom={8} scrollWheelZoom={false} className="h-full w-full">
+    <div className="relative h-[360px] w-full overflow-hidden rounded-2xl border border-surface-container shadow-sm sm:h-[480px] lg:h-[560px]">
+      <MapContainer center={fallbackCenter} zoom={8} scrollWheelZoom={false} zoomControl={false} className="h-full w-full">
+        <ZoomControl position="bottomleft" />
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {Object.entries(KALTIM_POLYGONS).map(([name, poly]) => (
-          <Polygon key={name} positions={poly} pathOptions={{ color: "#1e40af", fillColor: "#1e40af", fillOpacity: 0.06, weight: 2, dashArray: "8 6" }} />
-        ))}
-        {Object.values(MONITORED_LOCATIONS.reduce((acc, l) => ({ ...acc, [l.id]: [l.lat, l.lon] as [number, number] }), {} as Record<string, [number, number]>)).map(([lat, lon]) => (
-          <Circle key={`${lat}-${lon}`} center={[lat, lon]} radius={STATION_COVERAGE_M} pathOptions={{ color: "#0f172a", fillColor: "#0f172a", fillOpacity: 0.04, weight: 1, dashArray: "4 6" }} />
-        ))}
+        {Object.entries(KALTIM_BOUNDARIES).map(([name, multi]) => {
+          const entry = polygonByCity?.get(name.toLowerCase()) ?? polygonByCity?.get(name) ?? null;
+          const cat = entry?.aqiCategory ?? activeCategory;
+          const col = categoryColor(cat);
+          return multi.map((poly, idx) => (
+            <Polygon key={`${name}-${idx}`} positions={poly} pathOptions={{ color: col, fillColor: col, fillOpacity: 0.14, weight: 1.6 }} />
+          ));
+        })}
         {MONITORED_LOCATIONS.map((loc) => (
           <Marker key={loc.id} position={[loc.lat, loc.lon]} icon={stationPin} />
         ))}
         {selectedLoc && <Marker position={selectedLoc} icon={pin(activeColor)} />}
-        {selectedLoc && <Circle center={selectedLoc} radius={1800} pathOptions={{ color: activeColor, fillColor: activeColor, fillOpacity: 0.14, weight: 2 }} />}
         {userCoords && <Marker position={[userCoords.lat, userCoords.lon]} icon={userPin} />}
         <FlyTo center={selectedLoc} />
       </MapContainer>
 
-      <div className="pointer-events-none absolute left-3 top-3 z-[1000] max-w-[min(78%,22rem)] rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow backdrop-blur sm:left-4 sm:top-4">
+      <div className="pointer-events-none absolute bottom-3 left-14 z-[1000] max-w-[min(68%,22rem)] rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur sm:bottom-4 sm:left-16">
         <p className="flex items-center gap-1.5">
           <span className={`h-2 w-2 shrink-0 rounded-full ${activeDot}`} />
-          <span className="leading-tight">{selected ? `${selected.city} • AQI ${selected.usAqi} ${selected.aqiCategory.replaceAll("_", " ")}` : "Pilih kota di daftar perbandingan untuk fokus di peta"}</span>
+          <span className="leading-tight">{activeCity ? `${activeCity}${activeAqi != null ? ` • AQI ${activeAqi}` : ""} ${activeCategory.replaceAll("_", " ")}` : "Pilih kota di daftar perbandingan untuk fokus di peta"}</span>
         </p>
       </div>
       {userCoords && (
-        <div className="pointer-events-none absolute left-3 top-[3.75rem] z-[1000] flex max-w-[min(78%,22rem)] items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur sm:left-4">
+        <div className="pointer-events-none absolute bottom-3 left-[14.5rem] z-[1000] hidden items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur sm:flex">
           <Crosshair size={14} className="shrink-0 text-primary" />
           <span className="leading-tight">{region ? `Cakupan ${region}` : "Di luar cakupan sorotan"}</span>
         </div>

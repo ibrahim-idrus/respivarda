@@ -5,8 +5,15 @@
     {
       "idx": 0,
       "version": "7",
-      "when": 1788596434056,
-      "tag": "0000_light_agent_brand",
+      "when": 1788605895953,
+      "tag": "0000_ambitious_the_watchers",
+      "breakpoints": true
+    },
+    {
+      "idx": 1,
+      "version": "7",
+      "when": 1788606605149,
+      "tag": "0001_telegram_user_location",
       "breakpoints": true
     }
   ]
