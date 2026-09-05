@@ -18,7 +18,7 @@ Digunakan sebagai sumber utama data kualitas udara, seperti AQI (US), PM2.5, dan
 AI digunakan untuk menganalisis kondisi kualitas udara dan menghasilkan insight serta rekomendasi langkah preventif yang disesuaikan dengan kondisi pengguna. juga digunakan untuk menginterpretasikan data AQI menjadi informasi yang lebih mudah dipahami pengguna. 
 4. Backend API
 5. Database
-Database digunakan untuk menyimpan data yang diperlukan sistem, seperti profil pengguna, lokasi, preferensi notifikasi, riwayat kualitas udara, konfigurasi threshold, dan riwayat peringatan. Provider database yang digunakan yaitu postgresql.
+Database digunakan untuk menyimpan data yang diperlukan sistem, seperti profil pengguna, lokasi, riwayat kualitas udara, dan riwayat peringatan. Provider database yang digunakan yaitu postgresql.
 6. Website / Web Application
    Website menjadi antarmuka utama untuk menampilkan informasi kualitas udara secara visual. Adapun teknologi website yang digunakan yaitu Next Typescript.
 8. Telegram API Bot
