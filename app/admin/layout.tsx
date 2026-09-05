@@ -24,11 +24,7 @@ export default function AdminLayout({
   }
 
   return (
-<<<<<<< HEAD
     <SidebarProvider variant="sidebar" collapsible="none">
-=======
-    <div className="flex min-h-dvh bg-surface-container-low">
->>>>>>> 562df69 (feat: feedback & captcha)
       <AdminSidebar />
       <div className="flex min-w-0 flex-1 flex-col bg-surface min-h-dvh">
         <AdminHeader title={title} />
