@@ -65,7 +65,6 @@ export default function FeedbackQueue() {
   const counts = query.data?.counts;
   const rawRows = useMemo(() => query.data?.data ?? [], [query.data]);
 
-  // Client-side category and keyword filtering
   const filteredRows = useMemo(() => {
     return rawRows.filter((row) => {
       if (categoryFilter !== "all" && row.category !== categoryFilter) {

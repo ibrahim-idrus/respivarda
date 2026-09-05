@@ -6,10 +6,7 @@ import { getBotUsername } from "@/lib/telegram";
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
-// GET /api/telegram/status → { botUsername, connected, username? }
-// Never returns the token. Client polls this while "connecting".
-// ponytail: single-user mode — ceiling: returns the first connected user row,
-// correct only while one person uses the app. upgrade: filter by session user.
+
 export async function GET() {
   const rows = await db
     .select({ telegramChatId: users.telegramChatId })

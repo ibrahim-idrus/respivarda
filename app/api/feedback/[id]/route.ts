@@ -5,8 +5,6 @@ import { NextRequest, NextResponse } from "next/server";
 import { db } from "@/src/db";
 import { feedback, feedbackStatusEnum } from "@/src/db/schema";
 
-// ponytail: no auth on triage mutations. ceiling: anyone can change status.
-// upgrade: clerk role check. See route.ts ponytail.
 export async function PATCH(
   req: NextRequest,
   { params }: { params: Promise<{ id: string }> },

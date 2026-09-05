@@ -6,9 +6,7 @@ import { CheckCircle, PaperPlaneTilt } from "@phosphor-icons/react";
 
 type ConnectionState = "disconnected" | "connecting" | "connected";
 
-// ponytail: polling — ceiling: 3s interval polling /api/telegram/status while
-// connecting (max ~2min); simple but chatty. upgrade: websockets/SSE or
-// refresh-on-focus.
+
 export default function TelegramConnect() {
   const [state, setState] = useState<ConnectionState>("disconnected");
   const [botUsername, setBotUsername] = useState<string | null>(null);

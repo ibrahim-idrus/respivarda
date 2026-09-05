@@ -72,7 +72,7 @@ export default function UserRegistry() {
       if (!res.ok) throw new Error("Gagal memuat registri pengguna.");
       return res.json();
     },
-    refetchInterval: 10000, // Periodic refresh for live telegram onboarding
+    refetchInterval: 10000, 
   });
 
   const rawUsers = useMemo(() => query.data?.data ?? [], [query.data]);
@@ -87,7 +87,6 @@ export default function UserRegistry() {
     ).length,
   };
 
-  // Filter rows
   const filteredRows = useMemo(() => {
     return rawUsers.filter((u) => {
       if (statusFilter === "telegram_active" && u.alertStatus !== "active") {
@@ -117,7 +116,6 @@ export default function UserRegistry() {
     return filteredRows.slice((page - 1) * PAGE_SIZE, page * PAGE_SIZE);
   }, [filteredRows, page]);
 
-  // Send test telegram alert
   const handleSendTestAlert = async (chatId: string, userName: string) => {
     setSendingChatId(chatId);
     setAlertFeedback(null);

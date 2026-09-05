@@ -14,7 +14,7 @@ const TEST_MESSAGE = [
   "Status sensor: Aktif & Terpantau.",
 ].join("\n");
 
-// POST /api/telegram/test — accepts optional { chatId?: string, message?: string }
+
 export async function POST(req: Request) {
   let targetChatId: string | null = null;
   let customMessage: string | null = null;
@@ -28,7 +28,7 @@ export async function POST(req: Request) {
       customMessage = body.message.trim();
     }
   } catch {
-    // No body or not JSON, proceed to default
+
   }
 
   if (!targetChatId) {

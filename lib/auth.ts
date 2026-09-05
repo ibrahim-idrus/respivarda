@@ -2,7 +2,7 @@ import crypto from "node:crypto";
 
 const DEFAULT_SECRET = "respivarda-super-secret-admin-session-key-2026";
 export const ADMIN_COOKIE_NAME = "respivarda_admin_session";
-export const SESSION_MAX_AGE = 7 * 24 * 60 * 60; // 7 days in seconds
+export const SESSION_MAX_AGE = 7 * 24 * 60 * 60;
 
 export function getAdminSecret(): string {
   return process.env.ADMIN_SESSION_SECRET || DEFAULT_SECRET;
@@ -62,7 +62,7 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
   hmac.update(payloadBase64);
   const expectedSignature = hmac.digest("base64url");
 
-  // Constant-time comparison
+ 
   const sigBuffer = Buffer.from(signature);
   const expectedBuffer = Buffer.from(expectedSignature);
   if (sigBuffer.length !== expectedBuffer.length) return null;
@@ -73,7 +73,7 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
     const payload = JSON.parse(payloadJson) as SessionPayload;
 
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null; // Expired
+      return null; 
     }
 
     return payload;

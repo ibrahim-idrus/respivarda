@@ -1,5 +1,3 @@
-// Seed 5 feedback rows (2 pending, 1 investigating, 1 flagged, 1 resolved).
-// Safe to re-run: clears feedback table first. Run: npm run seed:feedback
 import "dotenv/config";
 import { sql } from "drizzle-orm";
 import { db } from "./index";

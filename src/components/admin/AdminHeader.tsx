@@ -14,7 +14,7 @@ export default function AdminHeader({ title }: { title: string }) {
     try {
       await fetch("/api/admin/auth/logout", { method: "POST" });
     } catch {
-      // Proceed to login anyway
+     
     }
     router.push("/admin/login");
     router.refresh();

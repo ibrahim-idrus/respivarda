@@ -20,7 +20,7 @@ export const STATUS_LABEL: Record<Feedback["status"], string> = {
   resolved: "Selesai",
 };
 
-// Kumo Badge variants per status
+
 export const STATUS_BADGE: Record<Feedback["status"], string> = {
   pending: "neutral",
   investigating: "info",
@@ -28,7 +28,7 @@ export const STATUS_BADGE: Record<Feedback["status"], string> = {
   resolved: "success",
 };
 
-// ponytail: WIB formatting via Intl — good enough, no date lib needed.
+
 export function formatWIB(d: Date | string | null): string {
   if (!d) return "-";
   return new Intl.DateTimeFormat("id-ID", {

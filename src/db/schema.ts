@@ -72,15 +72,12 @@ export const users = pgTable(
   {
     id: uuid("id").primaryKey().defaultRandom(),
     name: text("name").notNull(),
-    // nullable: Telegram-first users may not have a WhatsApp number
     whatsappNumber: text("whatsapp_number").unique(),
     telegramChatId: text("telegram_chat_id").unique(),
-    // nullable: Telegram usernames are optional and can change
     telegramUsername: text("telegram_username"),
     locale: text("locale").default("id").notNull(),
     consentGiven: boolean("consent_given").default(false).notNull(),
     consentAt: timestamp("consent_at"),
-    // nullable: raw coords from Telegram location share (separate from locationId)
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
     locationId: uuid("location_id").references(() => locations.id),
@@ -228,12 +225,7 @@ export const conversationStates = pgTable(
   (t) => [uniqueIndex("conversation_states_platform_external_unique").on(t.platform, t.externalId)]
 );
 
-// ponytail: reportRef generated in API (year + padded seq), not a DB sequence.
-// ceiling: concurrent inserts can race the count+1. upgrade: DB sequence or
-// gen via unique index retry. contactName/contactWhatsApp/contactTelegram are
-// free text (anonymous reports allowed) — no normalization. upgrade: real
-// contact table. affectedDevices is a text[] of device codes, not a FK —
-// devices don't exist as a table yet. upgrade: device table + FK.
+
 export const feedback = pgTable(
   "feedback",
   {
