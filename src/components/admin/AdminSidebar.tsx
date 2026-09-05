@@ -7,17 +7,13 @@ import {
   ArrowLeft,
   ChatCircleText,
   Fire,
-  Gauge,
-  ShieldCheck,
   SignOut,
   UsersThree,
 } from "@phosphor-icons/react";
 
 const NAV = [
-  { label: "Ikhtisar", href: null, icon: Gauge }, // disabled — not in scope
   { label: "Laporan Masukan", href: "/admin/feedback", icon: ChatCircleText },
   { label: "Konsol Pengguna", href: "/admin/console", icon: UsersThree },
-  { label: "Log Audit", href: null, icon: ShieldCheck }, // disabled — not in scope
 ] as const;
 
 export default function AdminSidebar() {
@@ -52,27 +48,16 @@ export default function AdminSidebar() {
             <Sidebar.Group>
               <Sidebar.GroupLabel>Administrasi</Sidebar.GroupLabel>
               <Sidebar.Menu>
-                {NAV.map((item) =>
-                  item.href ? (
-                    <Sidebar.MenuButton
-                      key={item.label}
-                      href={item.href}
-                      icon={<item.icon weight="regular" />}
-                      active={pathname.startsWith(item.href)}
-                    >
-                      {item.label}
-                    </Sidebar.MenuButton>
-                  ) : (
-                    <Sidebar.MenuButton
-                      key={item.label}
-                      icon={<item.icon weight="regular" />}
-                      disabled
-                      aria-disabled
-                    >
-                      {item.label}
-                    </Sidebar.MenuButton>
-                  ),
-                )}
+                {NAV.map((item) => (
+                  <Sidebar.MenuButton
+                    key={item.label}
+                    href={item.href}
+                    icon={<item.icon weight="regular" />}
+                    active={pathname.startsWith(item.href)}
+                  >
+                    {item.label}
+                  </Sidebar.MenuButton>
+                ))}
               </Sidebar.Menu>
             </Sidebar.Group>
 
