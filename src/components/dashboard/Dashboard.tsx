@@ -165,7 +165,7 @@ export default function Dashboard() {
             {headerAqi?.fetchedAt && (
               <div className="rounded-xl border border-surface-container bg-surface-container-lowest px-3 py-2 text-xs">
                 <p className="font-bold flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> {headerAqi.city} • AQI {headerAqi.usAqi} {aqiCategoryLabel(headerAqi.category)}</p>
-                <p className="text-on-surface-variant">Diperbarui {new Date(headerAqi.fetchedAt).toLocaleString("id-ID")}</p>
+                <p className="text-on-surface-variant">Diperbarui {new Date(headerAqi.fetchedAt).toLocaleString("id-ID", { timeZone: "Asia/Makassar" })} WITA</p>
               </div>
             )}
           </div>

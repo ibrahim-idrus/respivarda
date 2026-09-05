@@ -120,8 +120,8 @@ export const airQualityRecords = pgTable(
     locationId: uuid("location_id")
       .notNull()
       .references(() => locations.id, { onDelete: "cascade" }),
-    measuredAt: timestamp("measured_at").notNull(),
-    fetchedAt: timestamp("fetched_at").defaultNow().notNull(),
+    measuredAt: timestamp("measured_at", { withTimezone: true }).notNull(),
+    fetchedAt: timestamp("fetched_at", { withTimezone: true }).defaultNow().notNull(),
     usAqi: integer("us_aqi").notNull(),
     mainPollutant: text("main_pollutant").notNull(),
     aqiCategory: aqiCategoryEnum("aqi_category").notNull(),
