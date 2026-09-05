@@ -2,9 +2,9 @@ import type { Metadata } from "next";
 import FeedbackPage from "@/src/components/feedback/FeedbackPage";
 
 export const metadata: Metadata = {
-  title: "Send Feedback — Respivarda",
+  title: "Masukan, Respivarda",
   description:
-    "Report sensor discrepancies or suggest improvements to the Respivarda civic telemetry team. 100% anonymous.",
+    "Laporkan perbedaan bacaan AQI atau usulan perbaikan untuk tim Respivarda. Anonim.",
 };
 
 export default function Page() {

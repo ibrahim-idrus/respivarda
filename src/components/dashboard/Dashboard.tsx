@@ -1,149 +1,179 @@
 "use client";
 
-import { useState } from "react";
+import { useCallback, useEffect, useMemo, useState } from "react";
 import dynamic from "next/dynamic";
-import { Dialog, Button } from "@cloudflare/kumo";
-import { CheckCircle } from "@phosphor-icons/react";
+import { Crosshair, MapPin } from "@phosphor-icons/react";
 import Header from "./Header";
-import LocationBar from "./LocationBar";
-import SurroundingDistricts from "./SurroundingDistricts";
-import StatusPanel from "./StatusPanel";
-import TelegramConnect from "./TelegramConnect";
-import { DISTRICTS, SCENARIO_STYLES } from "@/src/lib/mock-data";
-import type { District, Scenario } from "@/src/lib/mock-data";
+import KaltimComparison from "./KaltimComparison";
+import { useGeolocation } from "@/src/hooks/useGeolocation";
+import { regionForPoint } from "@/src/lib/geo/kaltim";
 
-// ponytail: in-memory state — ceiling: refresh resets scenario/district.
-// upgrade: URL search param or localStorage.
 const SmokeMap = dynamic(() => import("./SmokeMap"), {
   ssr: false,
   loading: () => (
-    <div className="flex h-[420px] items-center justify-center rounded-2xl border border-surface-container bg-surface-container-low text-sm text-on-surface-variant">
+    <div className="flex h-[360px] items-center justify-center rounded-2xl border border-surface-container bg-surface-container-low text-sm text-on-surface-variant sm:h-[480px] lg:h-[560px]">
       Loading map…
     </div>
   ),
 });
 
-const DISTRICT_BY_SCENARIO: Record<Scenario, string> = {
-  affected: "selatan",
-  warning: "tengah",
-  safe: "utara",
-};
+type CityEntry = { city: string; usAqi: number; aqiCategory: string; mainPollutant?: string; lat?: number; lon?: number; fetchedAt?: string };
 
 export default function Dashboard() {
-  const [district, setDistrict] = useState<District>(DISTRICTS[0]);
-  const [locating, setLocating] = useState(false);
-  const [modalOpen, setModalOpen] = useState(false);
+  const { coords, loading: geoLoading, error: geoError, locate } = useGeolocation();
+  const [liveAqi, setLiveAqi] = useState<{ usAqi: number; category: string; city: string; fetchedAt: string } | null>(null);
+  const [byCity, setByCity] = useState<Record<string, CityEntry> | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [selectedKey, setSelectedKey] = useState<string | null>(null);
+  const [fetchError, setFetchError] = useState<string | null>(null);
+  const [myAqi, setMyAqi] = useState<CityEntry | null>(null);
+  const [myAqiLoading, setMyAqiLoading] = useState(false);
 
-  const selectScenario = (s: Scenario) => {
-    const target = DISTRICTS.find((d) => d.id === DISTRICT_BY_SCENARIO[s]);
-    if (target) setDistrict(target);
-  };
+  useEffect(() => {
+    let cancelled = false;
+    setLoading(true);
+    setFetchError(null);
+    fetch("/api/air-quality?fetch=1")
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok) {
+          if (!cancelled) setFetchError(j?.error ?? "Gagal memuat data kualitas udara.");
+          return;
+        }
+        const latest = j.data;
+        if (latest?.airQualityRecord && !cancelled) {
+          setLiveAqi({ usAqi: latest.airQualityRecord.usAqi, category: latest.aqiCategory, city: latest.airQualityRecord.city, fetchedAt: latest.storedAt });
+        }
+        if (j.byCity) {
+          const mapped: Record<string, CityEntry> = {};
+          for (const [k, v] of Object.entries(j.byCity as Record<string, { airQualityRecord: { city: string; usAqi: number; latitude?: number; longitude?: number; mainPollutant?: string }; aqiCategory: string; storedAt?: string }>)) {
+            const h = v as unknown as { airQualityRecord: { city: string; usAqi: number; latitude?: number; longitude?: number; mainPollutant?: string }; aqiCategory: string; storedAt?: string };
+            mapped[k] = {
+              city: h.airQualityRecord.city,
+              usAqi: h.airQualityRecord.usAqi,
+              aqiCategory: h.aqiCategory,
+              mainPollutant: h.airQualityRecord.mainPollutant,
+              lat: (h.airQualityRecord as { latitude?: number }).latitude,
+              lon: (h.airQualityRecord as { longitude?: number }).longitude,
+              fetchedAt: (h as { storedAt?: string }).storedAt,
+            };
+          }
+          if (!cancelled) {
+            setByCity(mapped);
+            const first = Object.keys(mapped)[0] ?? null;
+            setSelectedKey((prev) => prev ?? first);
+          }
+        }
+      })
+      .catch(() => {
+        if (!cancelled) setFetchError("Gagal memuat data kualitas udara. Coba muat ulang.");
+      })
+      .finally(() => { if (!cancelled) setLoading(false); });
+    return () => { cancelled = true; };
+  }, []);
 
-  // ponytail: simulated sync — ceiling: fixed timeout, never touches
-  // geolocation or network. upgrade: real fix + API sync.
-  const useMyLocation = () => {
-    setLocating(true);
-    setTimeout(() => setLocating(false), 1800);
-  };
+  const selected = useMemo(() => (selectedKey && byCity?.[selectedKey] ? byCity[selectedKey] : null), [byCity, selectedKey]);
+  const headerAqi = useMemo(() => {
+    if (myAqi) return { city: myAqi.city, usAqi: myAqi.usAqi, category: myAqi.aqiCategory, fetchedAt: myAqi.fetchedAt ?? liveAqi?.fetchedAt ?? null };
+    if (selected?.fetchedAt) return { city: selected.city, usAqi: selected.usAqi, category: selected.aqiCategory, fetchedAt: selected.fetchedAt };
+    if (selected) return { city: selected.city, usAqi: selected.usAqi, category: selected.aqiCategory, fetchedAt: liveAqi?.fetchedAt ?? null };
+    return liveAqi;
+  }, [selected, liveAqi, myAqi]);
+
+  const handleMyLocation = useCallback(() => locate(), [locate]);
+
+  useEffect(() => {
+    if (!coords) return;
+    let cancelled = false;
+    setMyAqiLoading(true);
+    fetch(`/api/air-quality/nearest?lat=${coords.lat}&lon=${coords.lon}`)
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok || !j?.data || cancelled) return;
+        const d = j.data;
+        setMyAqi({
+          city: d.airQualityRecord.city,
+          usAqi: d.airQualityRecord.usAqi,
+          aqiCategory: d.aqiCategory,
+          mainPollutant: d.mainPollutant ?? d.airQualityRecord.mainPollutant,
+          lat: d.airQualityRecord.latitude,
+          lon: d.airQualityRecord.longitude,
+          fetchedAt: d.storedAt,
+        });
+      })
+      .catch(() => {})
+      .finally(() => { if (!cancelled) setMyAqiLoading(false); });
+    return () => { cancelled = true; };
+  }, [coords]);
 
   return (
     <>
-      <Header onOpenModal={() => setModalOpen(true)} />
+      <Header />
       <main className="flex flex-1 flex-col gap-8 pb-16">
-        <LocationBar
-          activeDistrict={district}
-          onScenario={selectScenario}
-          onUseMyLocation={useMyLocation}
-          onOpenModal={() => setModalOpen(true)}
-          locating={locating}
-        />
-
-        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-extrabold tracking-tight">
-              Regional Smoke Dispersion &amp; Proximity Map
-            </h2>
-            <p className="text-sm text-on-surface-variant">
-              Balikpapan municipal live particulate drift and geographic radar
-            </p>
+        <section className="mx-auto w-full max-w-7xl px-4 pt-24 sm:px-6">
+          <div className="rounded-2xl border border-surface-container bg-surface-container-lowest p-4 shadow-sm">
+            <div className="flex flex-wrap items-start justify-between gap-3">
+              <div>
+                <p className="text-sm font-bold">
+                  {myAqi ? `Lokasi saya: ${myAqi.city} • AQI ${myAqi.usAqi} ${myAqi.aqiCategory.replaceAll("_", " ")}` : selected ? `Lokasi terpilih: ${selected.city} • AQI ${selected.usAqi}` : "Memuat lokasi pantau"}
+                </p>
+                <p className="text-xs text-on-surface-variant">
+                  {myAqi ? `Polutan utama ${myAqi.mainPollutant ?? "—"} • Data dari stasiun terdekat posisimu` : "Data dari stasiun terdekat via IQAir. Pilih kartu perbandingan untuk fokus di peta."}
+                </p>
+                {coords && (
+                  <p className="mt-2 text-xs text-on-surface-variant">
+                    Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)}
+                    {(() => {
+                      const r = regionForPoint(coords.lat, coords.lon);
+                      return r ? ` • Cakupan ${r}` : "";
+                    })()}
+                  </p>
+                )}
+                {geoError && <p className="mt-2 text-xs font-semibold text-rose-700">{geoError}</p>}
+                {fetchError && <p className="mt-2 text-xs font-semibold text-amber-700">{fetchError}</p>}
+              </div>
+              <button
+                onClick={handleMyLocation}
+                disabled={geoLoading || myAqiLoading}
+                className="inline-flex shrink-0 items-center gap-1.5 rounded-xl border border-secondary bg-secondary px-3 py-2 text-xs font-bold text-white shadow-sm transition hover:bg-secondary/90 disabled:opacity-60"
+              >
+                <Crosshair size={14} weight="bold" />
+                {geoLoading || myAqiLoading ? "Memuat..." : myAqi ? "Perbarui lokasi saya" : "Gunakan lokasi saya"}
+              </button>
+            </div>
+            {myAqi && (
+              <button onClick={() => setMyAqi(null)} className="mt-3 text-xs font-semibold text-secondary underline underline-offset-2">
+                Kembali ke kota terpilih
+              </button>
+            )}
           </div>
-          <SmokeMap district={district} />
         </section>
 
-        <SurroundingDistricts activeId={district.id} onSelect={setDistrict} />
-        <StatusPanel district={district} />
-        <TelegramConnect />
+        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-extrabold tracking-tight">Peta Kualitas Udara</h2>
+              <p className="text-sm text-on-surface-variant">Data AQI dari stasiun terdekat. Arsiran menandai cakupan wilayah tiap stasiun.</p>
+            </div>
+            {headerAqi?.fetchedAt && (
+              <div className="rounded-xl border border-surface-container bg-surface-container-lowest px-3 py-2 text-xs">
+                <p className="font-bold flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> {headerAqi.city} • AQI {headerAqi.usAqi} {headerAqi.category}</p>
+                <p className="text-on-surface-variant">Diperbarui {new Date(headerAqi.fetchedAt).toLocaleString("id-ID")}</p>
+              </div>
+            )}
+          </div>
+          <SmokeMap selectedKey={selectedKey} byCity={byCity} userCoords={coords} myLocation={myAqi ? { lat: myAqi.lat!, lon: myAqi.lon!, city: myAqi.city, aqiCategory: myAqi.aqiCategory } : null} />
+        </section>
+
+        <KaltimComparison byCity={byCity} loading={loading} selectedKey={selectedKey} onSelect={setSelectedKey} />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-          <div className="rounded-2xl border border-surface-container bg-surface-container-low p-6 text-sm text-on-surface-variant">
-            <p className="mb-1 font-extrabold text-on-surface">
-              About Respivarda Civic Service
-            </p>
-            Respivarda operates as a frictionless, anonymous environmental
-            hazard monitoring system. It fuses satellite infrared imagery
-            (Copernicus Sentinel-5P, MODIS/VIIRS) with distributed ground
-            optical sensors to deliver neighborhood-level smoke dispersion
-            radar without requiring sign-ins, cookies, or profiling.
+          <div className="rounded-2xl border p-6 text-sm text-on-surface-variant">
+            <p className="mb-1 font-extrabold text-on-surface">Tentang Respivarda</p>
+            Respivarda memantau kualitas udara dan memberi peringatan proaktif untuk mengurangi risiko ISPA. Sistem memakai data AQI dari IQAir, mengirim peringatan saat melewati ambang yang kamu atur, lalu menghasilkan insight dan rekomendasi yang relevan dengan kondisi saat itu. Pantau lewat website, dan dapatkan peringatan lewat bot WhatsApp dan Telegram.
           </div>
         </section>
       </main>
-
-      <footer className="border-t border-surface-container bg-surface-container-lowest py-6 text-center text-xs text-on-surface-variant">
-        © 2025 Respivarda Public Environmental Telemetry. Distributed under Open
-        Civic Data License. • Copernicus Attribution
-      </footer>
-
-      <Dialog.Root open={modalOpen} onOpenChange={setModalOpen}>
-        <Dialog className="p-6" size="lg">
-          <div className="mb-4 flex items-start justify-between">
-            <Dialog.Title className="text-lg font-extrabold">
-              Select Monitoring Location
-            </Dialog.Title>
-            <Dialog.Close render={(p) => <Button {...p} variant="ghost" size="sm">✕</Button>} />
-          </div>
-          <Dialog.Description className="mb-4 text-sm text-on-surface-variant">
-            Choose a Balikpapan district or test different smoke exposure zones:
-          </Dialog.Description>
-          <ul className="space-y-2">
-            {DISTRICTS.map((d) => {
-              const s = SCENARIO_STYLES[d.scenario];
-              const active = d.id === district.id;
-              return (
-                <li key={d.id}>
-                  <button
-                    onClick={() => {
-                      setDistrict(d);
-                      setModalOpen(false);
-                    }}
-                    className={`flex w-full items-center justify-between rounded-xl border px-4 py-3 text-left text-sm transition-colors ${
-                      active
-                        ? "border-secondary bg-secondary-container/40"
-                        : "border-surface-container hover:border-secondary"
-                    }`}
-                  >
-                    <span>
-                      <span className="block font-bold">{d.name}</span>
-                      <span className="text-xs text-on-surface-variant">
-                        {d.category} • AQI {d.aqi} • {d.distanceKm} km
-                      </span>
-                    </span>
-                    <span className="flex items-center gap-2">
-                      <span className={`h-2.5 w-2.5 rounded-full ${s.dot}`} />
-                      {active && (
-                        <CheckCircle
-                          size={18}
-                          weight="fill"
-                          className="text-secondary"
-                        />
-                      )}
-                    </span>
-                  </button>
-                </li>
-              );
-            })}
-          </ul>
-        </Dialog>
-      </Dialog.Root>
     </>
   );
 }

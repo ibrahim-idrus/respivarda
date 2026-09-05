@@ -3,13 +3,13 @@ import type { GetNearestCityParams, NearestCityData, NearestCityPipelineResult, 
 import { processAirQualityData } from './pipeline';
 
 const airVisualApi = axios.create({
-  baseURL: process.env.AIRVISUAL_API_URL ?? 'https://api.airvisual.com/v2',
+  baseURL: process.env.AIRVISUAL_API_URL ?? process.env.AIR_VISUAL_API_URL ?? 'https://api.airvisual.com/v2',
   timeout: 10_000
 });
 
 function resolveApiKey(explicitKey?: string): string {
-  const key = explicitKey ?? process.env.AIRVISUAL_API_KEY;
-  if (!key) throw new Error('Missing AirVisual API key. Pass `key` or set AIRVISUAL_API_KEY');
+  const key = explicitKey ?? process.env.AIRVISUAL_API_KEY ?? process.env.AIR_VISUAL_API_KEY;
+  if (!key) throw new Error('Missing AirVisual API key. Pass `key` or set AIR_VISUAL_API_KEY / AIR_VISUAL_API_KEY');
   return key;
 }
 

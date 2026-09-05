@@ -38,7 +38,7 @@ function fallback(input: RecommendationInput): AIRecommendation {
     HAZARDOUS: `Hindari aktivitas luar sepenuhnya. Polutan utama ${current.mainPollutant}. Tetap di ruangan tertutup.`,
   };
   return {
-    insight: `${current.city}: AQI ${current.usAqi} (${rule.category}), polutan utama ${current.mainPollutant}. Status ${rule.status} — ${rule.reason}.`,
+    insight: `${current.city}: AQI ${current.usAqi} (${rule.category}), polutan utama ${current.mainPollutant}. Status ${rule.status}: ${rule.reason}.`,
     recommendation: advices[rule.category] ?? advices.GOOD,
     risk_level: riskMap[rule.category] ?? "MODERATE",
   };
