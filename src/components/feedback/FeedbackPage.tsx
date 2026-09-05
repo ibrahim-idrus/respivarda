@@ -21,33 +21,21 @@ export default function FeedbackPage() {
               <div className="flex flex-col gap-2">
                 <span className="inline-flex w-fit items-center gap-2 rounded-full bg-surface-container px-2 py-0.5 text-[11px] font-bold uppercase tracking-wider text-secondary">
                   <span className="h-2 w-2 rounded-full bg-secondary" />
-                  Direct Civic Channel
+                  Kanal Warga Langsung
                 </span>
-                <h1 className="text-[26px] sm:text-[32px] font-bold leading-[1.25] tracking-tight text-on-surface">
-                  Send Feedback to Administrators
-                </h1>
-                <p className="text-sm leading-relaxed text-on-surface-variant">
-                  Help improve local smoke detection accuracy or report sensor
-                  discrepancies in your district. Your feedback is sent directly
-                  to the civic telemetry team.
-                </p>
+                <h1 className="text-[26px] sm:text-[32px] font-bold leading-[1.25] tracking-tight text-on-surface">Kirim Masukan untuk Admin</h1>
+                <p className="text-sm leading-relaxed text-on-surface-variant">Bantu tingkatkan akurasi deteksi asap atau laporkan perbedaan data sensor di wilayahmu. Masukanmu langsung diteruskan ke tim Respivarda.</p>
               </div>
 
               <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low p-6 shadow-sm">
                 <div className="flex items-center gap-2 text-on-surface">
                   <ShieldCheck size={20} weight="fill" className="text-secondary" />
-                  <span className="text-base font-semibold tracking-tight">
-                    100% Anonymous &amp; Public
-                  </span>
+                  <span className="text-base font-semibold tracking-tight">Anonim &amp; Terbuka</span>
                 </div>
-                <p className="text-[13px] leading-[18px] text-on-surface-variant">
-                  No registration, session cookies, IP trackers, or email
-                  addresses required. Notes are queued immediately for
-                  calibration verification and sensor diagnostics.
-                </p>
+                <p className="text-[13px] leading-[18px] text-on-surface-variant">Tanpa registrasi atau pelacakan. Catatanmu langsung diantrikan untuk verifikasi kalibrasi dan diagnosa sensor.</p>
                 <div className="flex items-center gap-2 pt-1 text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
                   <Broadcast size={16} className="text-secondary" />
-                  Audited by Open Environmental Initiative
+                  Diaudit oleh Inisiatif Lingkungan Terbuka
                 </div>
               </div>
             </div>
@@ -62,14 +50,9 @@ export default function FeedbackPage() {
 
       <footer className="w-full bg-surface-container-lowest shadow-[0_-1px_6px_rgba(0,0,0,0.02)]">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 sm:px-6 md:flex-row lg:px-12">
-          <p className="text-[13px] text-on-surface-variant">
-            © 2025 SmokeWatch Public Environmental Network.
-          </p>
-          <Link
-            href="/"
-            className="text-sm font-semibold text-secondary hover:underline"
-          >
-            Back to Live Dashboard
+          <p className="text-[13px] text-on-surface-variant">© 2026 Respivarda • Data: AirVisual (IQAir)</p>
+          <Link href="/" className="text-sm font-semibold text-secondary hover:underline">
+            Kembali ke Beranda
           </Link>
         </div>
       </footer>

@@ -63,18 +63,18 @@ export default function SmokeMap({ district, userCoords }: { district: District;
       <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
         <p className="flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${style.dot}`} />
-          Active Monitoring Point • {district.distanceKm} km from plume center
+          Titik pantau aktif • {district.distanceKm} km dari pusat sebaran
         </p>
       </div>
       {userCoords && (
         <div className="absolute left-4 top-14 z-[1000] flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
           <Crosshair size={14} className="text-primary" />
-          {region ? `Di dalam domisili ${region} (coverage Kaltim)` : "Di luar domisili Kaltim"}
+          {region ? `Di dalam domisili ${region} (cakupan Kaltim)` : "Di luar domisili Kaltim"}
         </div>
       )}
       <div className="absolute bottom-4 left-4 z-[1000] flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
         <Wind size={16} className="text-secondary" />
-        Wind: 14 km/h SW • Humidity: 58%
+        Angin: 14 km/jam Barat Daya • Kelembapan: 58%
       </div>
       <div className="absolute bottom-4 right-4 z-[1000] rounded-xl bg-primary/90 px-3 py-2 text-[11px] font-medium text-white shadow">Kaltim 3 kota via nearest_city • Arsiran = domisili per kota</div>
     </div>

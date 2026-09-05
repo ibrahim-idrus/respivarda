@@ -32,8 +32,7 @@ export default function KaltimComparison({ byCity, loading }: { byCity: Record<s
   return (
     <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
       <div className="mb-4">
-        <h2 className="text-xl font-extrabold tracking-tight">Kualitas Udara Sekitar — Perbandingan Kota Kaltim</h2>
-        <p className="text-sm text-on-surface-variant">Live via AirVisual nearest_city per kota (Balikpapan • Samarinda • Penajam). Hemat limit: 3 fetch per 15 menit.</p>
+        <h2 className="text-xl font-extrabold tracking-tight">Kualitas Udara Sekitar - Perbandingan Kota Kaltim</h2>
       </div>
       {loading ? (
         <div className="grid grid-cols-1 gap-4 sm:grid-cols-3">

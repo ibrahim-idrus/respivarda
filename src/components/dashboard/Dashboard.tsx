@@ -7,7 +7,6 @@ import { CheckCircle, MapPin } from "@phosphor-icons/react";
 import Header from "./Header";
 import LocationBar from "./LocationBar";
 import KaltimComparison from "./KaltimComparison";
-import StatusPanel from "./StatusPanel";
 import { DISTRICTS, SCENARIO_STYLES } from "@/src/lib/mock-data";
 import type { District, Scenario } from "@/src/lib/mock-data";
 import { useGeolocation } from "@/src/hooks/useGeolocation";
@@ -80,13 +79,13 @@ export default function Dashboard() {
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
-              <h2 className="text-xl font-extrabold tracking-tight">Regional Smoke Dispersion &amp; Proximity Map</h2>
-              <p className="text-sm text-on-surface-variant">Kaltim live — Balikpapan • Samarinda • Penajam via nearest_city (hemat limit 3 fetch) • Arsiran = domisili Kaltim</p>
+              <h2 className="text-xl font-extrabold tracking-tight">Peta Sebaran Asap &amp; Jarak Terdekat</h2>
+              <p className="text-sm text-on-surface-variant">Pantauan Kaltim langsung, arsiran menunjukkan cakupan domisili per kota</p>
             </div>
             {liveAqi && (
               <div className="rounded-xl border border-surface-container bg-surface-container-lowest px-3 py-2 text-xs">
                 <p className="font-bold flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> {liveAqi.city} • AQI {liveAqi.usAqi} {liveAqi.category}</p>
-                <p className="text-on-surface-variant">Fetched {new Date(liveAqi.fetchedAt).toLocaleString("id-ID")}</p>
+                <p className="text-on-surface-variant">Diperbarui {new Date(liveAqi.fetchedAt).toLocaleString("id-ID")}</p>
               </div>
             )}
           </div>
@@ -104,38 +103,25 @@ export default function Dashboard() {
         </section>
 
         <KaltimComparison byCity={byCity} loading={kaltimLoading} />
-        <StatusPanel district={district} />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
           <div className="rounded-2xl border border-surface-container bg-surface-container-low p-6 text-sm text-on-surface-variant">
-            <p className="mb-1 font-extrabold text-on-surface">
-              About SmokeWatch Civic Service
-            </p>
-            SmokeWatch operates as a frictionless, anonymous environmental
-            hazard monitoring system. It fuses satellite infrared imagery
-            (Copernicus Sentinel-5P, MODIS/VIIRS) with distributed ground
-            optical sensors to deliver neighborhood-level smoke dispersion
-            radar without requiring sign-ins, cookies, or profiling.
+            <p className="mb-1 font-extrabold text-on-surface">Tentang Respivarda</p>
+            Respivarda adalah sistem monitoring kualitas udara dan peringatan proaktif untuk mengurangi risiko ISPA. Sistem memantau indeks kualitas udara secara proaktif, memberi peringatan ketika melewati ambang batas, serta memberikan insight dan rekomendasi tindakan yang disesuaikan dengan kondisi saat ini. Akses tersedia melalui website serta bot WhatsApp dan Telegram.
           </div>
         </section>
       </main>
 
-      <footer className="border-t border-surface-container bg-surface-container-lowest py-6 text-center text-xs text-on-surface-variant">
-        © 2025 SmokeWatch Public Environmental Telemetry. Distributed under Open
-        Civic Data License. • Copernicus Attribution
-      </footer>
+      <footer className="border-t border-surface-container bg-surface-container-lowest py-6 text-center text-xs text-on-surface-variant">© 2026 Respivarda • Monitoring Kualitas Udara Kaltim • Data: AirVisual (IQAir)</footer>
+
 
       <Dialog.Root open={modalOpen} onOpenChange={setModalOpen}>
         <Dialog className="p-6" size="lg">
           <div className="mb-4 flex items-start justify-between">
-            <Dialog.Title className="text-lg font-extrabold">
-              Select Monitoring Location
-            </Dialog.Title>
+            <Dialog.Title className="text-lg font-extrabold">Pilih Lokasi Pantau</Dialog.Title>
             <Dialog.Close render={(p) => <Button {...p} variant="ghost" size="sm">✕</Button>} />
           </div>
-          <Dialog.Description className="mb-4 text-sm text-on-surface-variant">
-            Choose a Balikpapan district or test different smoke exposure zones:
-          </Dialog.Description>
+          <Dialog.Description className="mb-4 text-sm text-on-surface-variant">Pilih kecamatan di Balikpapan atau uji zona paparan asap yang berbeda:</Dialog.Description>
           <ul className="space-y-2">
             {DISTRICTS.map((d) => {
               const s = SCENARIO_STYLES[d.scenario];

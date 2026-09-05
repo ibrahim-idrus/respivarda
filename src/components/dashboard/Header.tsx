@@ -13,34 +13,24 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
             <CloudSun size={20} weight="fill" />
           </div>
           <div className="leading-tight">
-            <p className="text-base font-extrabold tracking-tight">SmokeWatch</p>
-            <p className="text-[11px] font-medium text-on-surface-variant">
-              Public Environmental Service
-            </p>
+            <p className="text-base font-extrabold tracking-tight">Respivarda</p>
+            <p className="text-[11px] font-medium text-on-surface-variant">Monitoring Kualitas Udara</p>
           </div>
         </div>
 
         <nav className="hidden items-center gap-6 text-sm font-semibold md:flex">
-          <span className="text-secondary">Dashboard</span>
-          <Link
-            href="/feedback"
-            className="text-on-surface-variant transition-colors hover:text-secondary"
-          >
-            Feedback
+          <span className="text-secondary">Beranda</span>
+          <Link href="/feedback" className="text-on-surface-variant transition-colors hover:text-secondary">
+            Masukan
           </Link>
           <span className="hidden items-center gap-1.5 text-xs font-medium text-on-surface-variant lg:flex">
             <span className="h-2 w-2 rounded-full bg-emerald-500" />
-            Live Monitoring • Updated 2m ago
+            Pantau langsung • Diperbarui 2 menit lalu
           </span>
         </nav>
 
-        <Button
-          variant="primary"
-          size="sm"
-          icon={<MapPin weight="fill" />}
-          onClick={onOpenModal}
-        >
-          Set Location
+        <Button variant="primary" size="sm" icon={<MapPin weight="fill" />} onClick={onOpenModal}>
+          Atur Lokasi
         </Button>
       </div>
     </header>
