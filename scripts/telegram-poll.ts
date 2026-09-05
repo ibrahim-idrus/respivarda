@@ -1,12 +1,3 @@
-// Local dev polling for the Telegram bot — no public URL or webhook secret
-// needed. Reuses the exact handler the webhook route uses (processUpdate).
-//
-//   npm run telegram:poll
-//
-// ponytail: single-process poller — ceiling: no offset persistence, so a
-// restart re-fetches nothing (offset is committed via getUpdates ack) but a
-// crash mid-batch could drop unacked updates. upgrade: persist offset + run as
-// a supervised worker if this ever leaves local dev.
 import { processUpdate } from "@/app/api/telegram/webhook/route";
 
 const token = process.env.Telegram_URL ?? process.env.TELEGRAM_URL;
