@@ -47,13 +47,14 @@ export default function Dashboard() {
   useEffect(() => {
     setKaltimLoading(true);
     fetch("/api/air-quality?fetch=1")
-      .then((r) => r.json())
-      .then((j) => {
+      .then(async (r) => {
+        const j = await r.json();
+        if (!r.ok) return;
         const latest = j.data;
         if (latest?.airQualityRecord) setLiveAqi({ usAqi: latest.airQualityRecord.usAqi, category: latest.aqiCategory, city: latest.airQualityRecord.city, fetchedAt: latest.storedAt });
         if (j.byCity) {
           const mapped: Record<string, { city: string; usAqi: number; aqiCategory: string; mainPollutant?: string; freshness?: string }> = {};
-          for (const [k, v] of Object.entries(j.byCity as Record<string, { airQualityRecord: { city: string; usAqi: number }; aqiCategory: string; alertEvent?: { status: string } }>)) {
+          for (const [k, v] of Object.entries(j.byCity as Record<string, { airQualityRecord: { city: string; usAqi: number }; aqiCategory: string }>)) {
             const h = v as unknown as { airQualityRecord: { city: string; usAqi: number; mainPollutant?: string; freshness?: string }; aqiCategory: string };
             mapped[k] = { city: h.airQualityRecord.city, usAqi: h.airQualityRecord.usAqi, aqiCategory: h.aqiCategory, mainPollutant: (h.airQualityRecord as { mainPollutant?: string }).mainPollutant, freshness: (h.airQualityRecord as { freshness?: string }).freshness };
           }
