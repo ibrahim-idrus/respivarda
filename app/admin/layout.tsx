@@ -1,6 +1,7 @@
 "use client";
 
 import { usePathname } from "next/navigation";
+import { SidebarProvider } from "@cloudflare/kumo";
 import AdminHeader from "@/src/components/admin/AdminHeader";
 import AdminSidebar from "@/src/components/admin/AdminSidebar";
 
@@ -23,12 +24,12 @@ export default function AdminLayout({
   }
 
   return (
-    <div className="flex min-h-dvh bg-surface">
+    <SidebarProvider variant="sidebar" collapsible="none">
       <AdminSidebar />
-      <div className="flex min-w-0 flex-1 flex-col">
+      <div className="flex min-w-0 flex-1 flex-col bg-surface min-h-dvh">
         <AdminHeader title={title} />
         <main className="min-w-0 flex-1 overflow-y-auto p-6">{children}</main>
       </div>
-    </div>
+    </SidebarProvider>
   );
 }

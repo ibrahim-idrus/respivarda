@@ -2,8 +2,7 @@
 
 import { useState } from "react";
 import { usePathname, useRouter } from "next/navigation";
-import { Badge } from "@cloudflare/kumo";
-import { Sidebar, SidebarProvider } from "@cloudflare/kumo";
+import { Badge, Sidebar } from "@cloudflare/kumo";
 import {
   ArrowLeft,
   ChatCircleText,
@@ -38,9 +37,8 @@ export default function AdminSidebar() {
   };
 
   return (
-    <SidebarProvider variant="sidebar" collapsible="none" contained>
-      <Sidebar className="flex flex-col justify-between">
-        <div>
+    <Sidebar className="flex flex-col justify-between">
+      <div>
           <Sidebar.Header className="p-4">
             <div className="flex items-center gap-2">
               <Fire size={22} weight="fill" className="text-primary" />
@@ -99,6 +97,5 @@ export default function AdminSidebar() {
           </Sidebar.Content>
         </div>
       </Sidebar>
-    </SidebarProvider>
-  );
-}
+    );
+  }
