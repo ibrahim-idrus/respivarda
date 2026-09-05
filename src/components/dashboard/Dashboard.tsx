@@ -3,7 +3,7 @@
 import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Dialog, Button } from "@cloudflare/kumo";
-import { CheckCircle, Fire, MapPin, Info } from "@phosphor-icons/react";
+import { CheckCircle, MapPin } from "@phosphor-icons/react";
 import Header from "./Header";
 import LocationBar from "./LocationBar";
 import SurroundingDistricts from "./SurroundingDistricts";
@@ -77,16 +77,8 @@ export default function Dashboard() {
             )}
           </div>
           {geoError && <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{geoError}</p>}
-          {coords && <p className="mb-3 rounded-xl border border-surface-container bg-white px-3 py-2 text-xs">Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)} — {isInsideBalikpapan(coords.lat, coords.lon) ? "Di dalam domisili Balikpapan (ter-cover stasiun)" : "Di luar domisili Balikpapan (data tetap pakai Balikpapan terdekat)"}</p>}
+          {coords && <p className="mb-3 rounded-xl border border-surface-container bg-white px-3 py-2 text-xs">Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)} — {isInsideBalikpapan(coords.lat, coords.lon) ? "Di dalam domisili Balikpapan (ter-cover stasiun)" : "Di luar domisili Balikpapan (data nearest_city tetap wilayah terdekat)"}</p>}
           <SmokeMap district={district} userCoords={coords} />
-        </section>
-
-        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
-            <p className="flex items-center gap-2 font-extrabold text-amber-900"><Fire size={18} weight="fill" className="text-amber-600" /> Sumber titik kebakaran / hotspot</p>
-            <p className="mt-1 text-amber-800">AirVisual <code className="rounded bg-amber-100 px-1">nearest_city</code> tidak menyediakan hotspot — hanya AQI {liveAqi?.usAqi ?? "—"} dan polutan untuk Balikpapan. Titik karhutla butuh API terpisah seperti NASA FIRMS (VIIRS/MODIS) atau BMKG — belum diaktifkan agar tidak menambah limit. Saat AQI naik + PM2.5 dominan, anggap ada pengaruh asap di sekitar.</p>
-            <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-700"><Info size={14} /> Stasiun AirVisual butuh plan Startup berbayar; coverage di peta hanya visualisasi 15 km dari koordinat Balikpapan, bukan radius resmi stasiun.</p>
-          </div>
         </section>
 
         <SurroundingDistricts activeId={district.id} onSelect={setDistrict} />
