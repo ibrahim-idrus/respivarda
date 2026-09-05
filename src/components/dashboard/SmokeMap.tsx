@@ -1,12 +1,13 @@
 "use client";
 
-import { useMemo } from "react";
-import { MapContainer, Marker, Polygon, TileLayer, useMap, ZoomControl } from "react-leaflet";
+import { useEffect, useMemo, useState } from "react";
+import { GeoJSON, MapContainer, Marker, TileLayer, useMap, ZoomControl } from "react-leaflet";
 import L from "leaflet";
+import type { FeatureCollection } from "geojson";
 import "leaflet/dist/leaflet.css";
 import { Crosshair } from "@phosphor-icons/react";
 import { MONITORED_LOCATIONS } from "@/lib/airvisual/monitored-locations";
-import { KALTIM_BOUNDARIES, regionForPoint } from "@/src/lib/geo/kaltim";
+import { regionForPoint } from "@/src/lib/geo/kaltim";
 import type { GeoState } from "@/src/hooks/useGeolocation";
 
 type SmokeMapProps = {
@@ -65,7 +66,15 @@ function FlyTo({ center }: { center: [number, number] | null }) {
 }
 
 export default function SmokeMap({ selectedKey, byCity, userCoords, myLocation }: SmokeMapProps) {
+  const [boundaries, setBoundaries] = useState<FeatureCollection | null>(null);
   const region = userCoords ? regionForPoint(userCoords.lat, userCoords.lon) : null;
+
+  useEffect(() => {
+    fetch("/geo/kaltim-kabupaten.geojson")
+      .then((response) => response.json())
+      .then(setBoundaries)
+      .catch(() => setBoundaries(null));
+  }, []);
 
   const selected = selectedKey && byCity?.[selectedKey] ? byCity[selectedKey] : null;
   const selectedLoc = useMemo(() => {
@@ -85,7 +94,7 @@ export default function SmokeMap({ selectedKey, byCity, userCoords, myLocation }
   const polygonByCity = useMemo(() => {
     if (!byCity) return null;
     const byName = new Map<string, { aqiCategory: string }>();
-    for (const v of Object.values(byCity)) byName.set(v.city.toLowerCase(), v);
+    for (const v of Object.values(byCity)) byName.set(v.city.toLowerCase().replace(/^kota\s+/, ""), v);
     return byName;
   }, [byCity]);
 
@@ -94,14 +103,18 @@ export default function SmokeMap({ selectedKey, byCity, userCoords, myLocation }
       <MapContainer center={fallbackCenter} zoom={8} scrollWheelZoom={false} zoomControl={false} className="h-full w-full">
         <ZoomControl position="bottomleft" />
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        {Object.entries(KALTIM_BOUNDARIES).map(([name, multi]) => {
-          const entry = polygonByCity?.get(name.toLowerCase()) ?? polygonByCity?.get(name) ?? null;
-          const cat = entry?.aqiCategory ?? activeCategory;
-          const col = categoryColor(cat);
-          return multi.map((poly, idx) => (
-            <Polygon key={`${name}-${idx}`} positions={poly} pathOptions={{ color: col, fillColor: col, fillOpacity: 0.14, weight: 1.6 }} />
-          ));
-        })}
+        {boundaries && (
+          <GeoJSON
+            key={polygonByCity ? [...polygonByCity].map(([name, value]) => `${name}:${value.aqiCategory}`).join("|") : "empty"}
+            data={boundaries}
+            style={(feature) => {
+              const name = feature?.properties?.WADMKK?.toLowerCase().replace(/^kota\s+/, "");
+              const entry = name ? polygonByCity?.get(name) : null;
+              const color = entry ? categoryColor(entry.aqiCategory) : "#64748b";
+              return { color, fillColor: color, fillOpacity: entry ? 0.14 : 0.02, weight: entry ? 1.8 : 1.2 };
+            }}
+          />
+        )}
         {MONITORED_LOCATIONS.map((loc) => (
           <Marker key={loc.id} position={[loc.lat, loc.lon]} icon={stationPin} />
         ))}

@@ -60,7 +60,7 @@ DATA PENGGUNA (opsional):
 - Profil: usia ${profile?.age ?? "-"}, gender ${profile?.gender ?? "-"}, riwayat ${profile?.medicalHistory?.join(", ") || "-"}
 - Health log: aktivitas ${healthLog?.physicalActivity ?? "-"}, tidur ${healthLog?.avgSleepHours ?? "-"} jam, gejala ${healthLog?.symptoms?.join(", ") || "-"}
 
-TUGAS: keluarkan JSON { insight: string (1 kalimat), recommendation: string (2-4 kalimat preventif personal), risk_level: "LOW"|"MODERATE"|"HIGH"|"CRITICAL" }. Hanya JSON.`;
+TUGAS: keluarkan JSON { insight: string (1 kalimat), recommendation: string (2-4 kalimat preventif personal, TANPA bullet/numbering/emoji, plain sentences), risk_level: "LOW"|"MODERATE"|"HIGH"|"CRITICAL" }. Hanya JSON.`;
 }
 
 export async function generateRecommendation(input: RecommendationInput): Promise<AIRecommendation> {

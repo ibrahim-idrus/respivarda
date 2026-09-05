@@ -39,21 +39,21 @@ export default function Dashboard() {
           return;
         }
         const latest = j.data;
-        if (latest?.airQualityRecord && !cancelled) {
-          setLiveAqi({ usAqi: latest.airQualityRecord.usAqi, category: latest.aqiCategory, city: latest.airQualityRecord.city, fetchedAt: latest.storedAt });
+        if (latest?.city && !cancelled) {
+          setLiveAqi({ usAqi: latest.usAqi, category: latest.aqiCategory, city: latest.city, fetchedAt: latest.fetchedAt });
         }
         if (j.byCity) {
           const mapped: Record<string, CityEntry> = {};
-          for (const [k, v] of Object.entries(j.byCity as Record<string, { airQualityRecord: { city: string; usAqi: number; latitude?: number; longitude?: number; mainPollutant?: string }; aqiCategory: string; storedAt?: string }>)) {
-            const h = v as unknown as { airQualityRecord: { city: string; usAqi: number; latitude?: number; longitude?: number; mainPollutant?: string }; aqiCategory: string; storedAt?: string };
+          for (const [k, v] of Object.entries(j.byCity as Record<string, { city: string; usAqi: number; latitude?: number; longitude?: number; mainPollutant?: string; aqiCategory: string; fetchedAt?: string }>)) {
+            const h = v as unknown as { city: string; usAqi: number; latitude?: number; longitude?: number; mainPollutant?: string; aqiCategory: string; fetchedAt?: string };
             mapped[k] = {
-              city: h.airQualityRecord.city,
-              usAqi: h.airQualityRecord.usAqi,
+              city: h.city,
+              usAqi: h.usAqi,
               aqiCategory: h.aqiCategory,
-              mainPollutant: h.airQualityRecord.mainPollutant,
-              lat: (h.airQualityRecord as { latitude?: number }).latitude,
-              lon: (h.airQualityRecord as { longitude?: number }).longitude,
-              fetchedAt: (h as { storedAt?: string }).storedAt,
+              mainPollutant: h.mainPollutant,
+              lat: h.latitude,
+              lon: h.longitude,
+              fetchedAt: h.fetchedAt,
             };
           }
           if (!cancelled) {
@@ -92,13 +92,13 @@ export default function Dashboard() {
         if (!r.ok || !j?.data || cancelled) return;
         const d = j.data;
         setMyAqi({
-          city: d.airQualityRecord.city,
-          usAqi: d.airQualityRecord.usAqi,
+          city: d.city,
+          usAqi: d.usAqi,
           aqiCategory: d.aqiCategory,
-          mainPollutant: d.mainPollutant ?? d.airQualityRecord.mainPollutant,
-          lat: d.airQualityRecord.latitude,
-          lon: d.airQualityRecord.longitude,
-          fetchedAt: d.storedAt,
+          mainPollutant: d.mainPollutant,
+          lat: d.latitude,
+          lon: d.longitude,
+          fetchedAt: d.fetchedAt,
         });
       })
       .catch(() => {})

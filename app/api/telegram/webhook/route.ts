@@ -1,19 +1,31 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/src/db";
 import { conversationStates, healthLogs, userProfiles, users } from "@/src/db/schema";
-import { isValidWebhookSecret, sendTelegramMessage } from "@/lib/telegram";
-import { evaluateRuleEngine, fetchNearestCity } from "@/lib/airvisual";
+import { isValidWebhookSecret, sendTelegramMessage, escapeHtml } from "@/lib/telegram";
+import { formatAqiCard, formatRecommendationBlock } from "@/lib/telegram/format";
+import { evaluateRuleEngine } from "@/lib/airvisual";
+import { getAqiForCoords } from "@/lib/airvisual/cache";
 import { generateAlertInsightRecommendation } from "@/lib/ai/recommendation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
 
 const INTRO = [
-  "Halo, saya Respivarda.",
-  "Saya memantau kualitas udara di lokasi Anda, memberi rekomendasi dan wawasan kesehatan, serta mengirim peringatan proaktif saat udara memburuk.",
-  "Data yang saya simpan: nama, usia, jenis kelamin, riwayat kesehatan, domisili, dan lokasi pemantauan.",
-  "Apakah Anda setuju melanjutkan pendaftaran?",
-].join("\n\n");
+  "👋 <b>Halo, saya Respivarda</b>",
+  "Pemantau kualitas udara pribadi Anda.",
+  "",
+  "<b>Yang saya lakukan untuk Anda:</b>",
+  "• 🌬️ Pantau kualitas udara di lokasi Anda",
+  "• 💡 Beri wawasan dan rekomendasi kesehatan",
+  "• 🔔 Kirim peringatan proaktif saat udara memburuk",
+  "",
+  "<b>Data yang saya simpan:</b>",
+  "• Nama, usia, dan jenis kelamin",
+  "• Riwayat penyakit pernapasan",
+  "• Domisili dan lokasi pemantauan",
+  "",
+  "Apakah Anda <b>setuju</b> melanjutkan pendaftaran?",
+].join("\n");
 
 const CONSENT_KEYBOARD = {
   keyboard: [[{ text: "Setuju" }, { text: "Tidak" }]],
@@ -30,10 +42,32 @@ const LOCATION_KEYBOARD = {
   resize_keyboard: true,
   one_time_keyboard: true,
 };
+const MEDICAL_OPTIONS = [
+  "Influenza",
+  "Batuk pilek",
+  "Faringitis",
+  "Mpox",
+  "Hanta",
+  "Pneumonia",
+  "Bronkiolitis",
+  "Bronkitis akut",
+  "Sinusitis",
+];
+const MEDICAL_KEYBOARD = {
+  keyboard: [
+    [{ text: "Influenza" }, { text: "Batuk pilek" }],
+    [{ text: "Faringitis" }, { text: "Mpox" }],
+    [{ text: "Hanta" }, { text: "Pneumonia" }],
+    [{ text: "Bronkiolitis" }, { text: "Bronkitis akut" }],
+    [{ text: "Sinusitis" }],
+    [{ text: "Tidak ada" }, { text: "Selesai" }],
+  ],
+  resize_keyboard: true,
+  one_time_keyboard: false,
+};
 const MAIN_MENU = {
   keyboard: [
-    [{ text: "Cek Kualitas Udara" }, { text: "Aktivitas Fisik" }],
-    [{ text: "Durasi Tidur" }, { text: "Gejala" }],
+    [{ text: "Cek Kualitas Udara" }],
     [{ text: "Perbarui Lokasi" }, { text: "Profil & Statistik" }],
   ],
   resize_keyboard: true,
@@ -140,14 +174,27 @@ function parseGender(text: string): "male" | "female" | "other" | null {
   return null;
 }
 
-function parseMedical(text: string): string[] {
-  const t = text.trim();
-  if (/^tidak ada$/i.test(t) || t === "-" || t === "") return [];
-  return t
-    .split(/[,;\n]+/)
-    .map((s) => s.trim())
-    .filter(Boolean)
-    .slice(0, 20);
+function matchMedicalOption(text: string): string | null {
+  const t = text.trim().toLowerCase();
+  return MEDICAL_OPTIONS.find((o) => o.toLowerCase() === t) ?? null;
+}
+
+function isMedicalDone(text: string): boolean {
+  return ["selesai", "done", "lanjut"].includes(text.trim().toLowerCase());
+}
+
+function isMedicalNone(text: string): boolean {
+  const t = text.trim().toLowerCase();
+  return t === "tidak ada" || t === "-";
+}
+
+async function getMedicalDraft(userId: string): Promise<string[]> {
+  const [profile] = await db
+    .select({ medicalHistory: userProfiles.medicalHistory })
+    .from(userProfiles)
+    .where(eq(userProfiles.userId, userId))
+    .limit(1);
+  return profile?.medicalHistory ?? [];
 }
 
 function isYes(text: string): boolean {
@@ -159,13 +206,15 @@ function isNo(text: string): boolean {
 }
 
 async function showMainMenu(chatId: number, intro?: string) {
-  const body = intro ? `${intro}\n\nSilakan pilih menu:` : "Silakan pilih menu:";
+  const body = intro
+    ? `📋 <b>Menu Utama</b>\n\n${escapeHtml(intro)}\n\n👇 <i>Silakan pilih menu di bawah:</i>`
+    : "📋 <b>Menu Utama</b>\n\n👇 <i>Silakan pilih menu di bawah:</i>";
   await sendTelegramMessage(chatId, body, MAIN_MENU);
 }
 
 async function runInitialAqi(chatId: number, lat: number, lon: number) {
-  const result = await fetchNearestCity({ lat, lon });
-  if (result.kind !== "success") {
+  const { cached } = await getAqiForCoords(lat, lon);
+  if (!cached) {
     await setState(chatId, "onboarded");
     await sendTelegramMessage(
       chatId,
@@ -174,7 +223,19 @@ async function runInitialAqi(chatId: number, lat: number, lon: number) {
     await showMainMenu(chatId);
     return;
   }
-  const current = result.data;
+  const current = {
+    city: cached.city,
+    state: cached.state,
+    country: cached.country,
+    latitude: cached.latitude,
+    longitude: cached.longitude,
+    usAqi: cached.usAqi,
+    aqiCategory: cached.aqiCategory,
+    mainPollutant: cached.mainPollutant as "PM2.5" | "PM10" | "O3" | "NO2" | "SO2" | "CO",
+    measuredAt: cached.measuredAt,
+    dataAgeMinutes: cached.dataAgeMinutes,
+    freshness: cached.dataAgeMinutes <= 120 ? ("FRESH" as const) : cached.dataAgeMinutes <= 180 ? ("STALE" as const) : ("EXPIRED" as const),
+  };
   const rule = evaluateRuleEngine({ current });
   const user = await getUser(chatId);
   const [profile] = user
@@ -207,14 +268,31 @@ async function runInitialAqi(chatId: number, lat: number, lon: number) {
     healthLog: healthLog ?? null,
   });
   await setState(chatId, "onboarded");
-  const header = `${current.city}: AQI ${current.usAqi} (${rule.category}), polutan utama ${current.mainPollutant}.`;
-  const prefix =
-    rule.alertDecision === "trigger" && rule.severity >= 2
-      ? `Peringatan kualitas udara.\n${header}`
-      : header;
-  await sendTelegramMessage(chatId, prefix, REMOVE_KEYBOARD);
+  const isFresh = current.freshness === "FRESH";
+  const isAlert = rule.alertDecision === "trigger" && rule.severity >= 2 && isFresh;
+  await sendTelegramMessage(
+    chatId,
+    formatAqiCard({
+      city: current.city,
+      usAqi: current.usAqi,
+      category: rule.category,
+      pollutant: current.mainPollutant,
+      isAlert,
+      freshness: current.freshness,
+      dataAgeMinutes: current.dataAgeMinutes,
+      medicalHistory: profile?.medicalHistory ?? [],
+    }),
+    REMOVE_KEYBOARD
+  );
   if (recommendation ?? insight) {
-    await sendTelegramMessage(chatId, (recommendation ?? insight) as string);
+    await sendTelegramMessage(
+      chatId,
+      formatRecommendationBlock({
+        insight,
+        recommendation,
+        medicalHistory: profile?.medicalHistory ?? [],
+      })
+    );
   } else {
     await sendTelegramMessage(chatId, "Rekomendasi personal belum tersedia saat ini.");
   }
@@ -249,7 +327,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
           .where(eq(users.id, user.id));
       }
       await setState(chatId, "awaiting_name");
-      await sendTelegramMessage(chatId, "Terima kasih. Siapa nama Anda?", REMOVE_KEYBOARD);
+      await sendTelegramMessage(chatId, "✅ <b>Persetujuan tersimpan.</b>\n\n📝 <b>Langkah 1 dari 5</b>\nSiapa <b>nama</b> Anda?", REMOVE_KEYBOARD);
     } else if (isNo(text)) {
       await setState(chatId, "declined");
       await sendTelegramMessage(
@@ -279,7 +357,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     }
     await db.update(users).set({ name, updatedAt: new Date() }).where(eq(users.id, user.id));
     await setState(chatId, "awaiting_age");
-    await sendTelegramMessage(chatId, "Berapa usia Anda? (0-120)");
+    await sendTelegramMessage(chatId, `Halo <b>${escapeHtml(name)}</b>! 👋\n\n📝 <b>Langkah 2 dari 5</b>\nBerapa <b>usia</b> Anda? (0-120)`);
     return;
   }
   if (step === "awaiting_age") {
@@ -290,7 +368,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     }
     await saveProfile(user.id, { age });
     await setState(chatId, "awaiting_gender");
-    await sendTelegramMessage(chatId, "Apa jenis kelamin Anda?", GENDER_KEYBOARD);
+    await sendTelegramMessage(chatId, "📝 <b>Langkah 3 dari 5</b>\nApa <b>jenis kelamin</b> Anda?", GENDER_KEYBOARD);
     return;
   }
   if (step === "awaiting_gender") {
@@ -303,15 +381,49 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     await setState(chatId, "awaiting_medical");
     await sendTelegramMessage(
       chatId,
-      "Apakah ada riwayat penyakit? (contoh: Tidak ada, Asma, Alergi, Penyakit jantung / paru, Diabetes / Hipertensi)",
-      REMOVE_KEYBOARD
+      "📝 <b>Langkah 4 dari 5</b>\n\n🩺 <b>Riwayat penyakit pernapasan</b>\nKetuk <b>satu atau lebih</b> tombol di bawah, lalu ketuk <b>Selesai</b>.\n\n<i>Pilih Tidak ada jika tidak ada.</i>",
+      MEDICAL_KEYBOARD
     );
     return;
   }
   if (step === "awaiting_medical") {
-    await saveProfile(user.id, { medicalHistory: parseMedical(text) });
-    await setState(chatId, "awaiting_residence");
-    await sendTelegramMessage(chatId, "Di mana tempat tinggal Anda? (kota / daerah)");
+    if (isMedicalNone(text)) {
+      await saveProfile(user.id, { medicalHistory: [] });
+      await setState(chatId, "awaiting_residence");
+      await sendTelegramMessage(chatId, "📝 <b>Langkah 5 dari 5</b>\nDi mana <b>tempat tinggal</b> Anda? (kota / daerah)", REMOVE_KEYBOARD);
+      return;
+    }
+    if (isMedicalDone(text)) {
+      const draft = await getMedicalDraft(user.id);
+      await saveProfile(user.id, { medicalHistory: draft });
+      await setState(chatId, "awaiting_residence");
+      const savedLine = draft.length
+        ? `✅ <b>Tersimpan:</b>\n${draft.map((d) => `• ${escapeHtml(d)}`).join("\n")}\n\n`
+        : "";
+      await sendTelegramMessage(
+        chatId,
+        `${savedLine}📝 <b>Langkah 5 dari 5</b>\nDi mana <b>tempat tinggal</b> Anda? (kota / daerah)`,
+        REMOVE_KEYBOARD
+      );
+      return;
+    }
+    const option = matchMedicalOption(text);
+    if (!option) {
+      await sendTelegramMessage(chatId, "Pilih dari tombol yang tersedia, atau ketuk Selesai.", MEDICAL_KEYBOARD);
+      return;
+    }
+    const draft = await getMedicalDraft(user.id);
+    if (!draft.includes(option)) {
+      const updated = [...draft, option];
+      await saveProfile(user.id, { medicalHistory: updated });
+      await sendTelegramMessage(
+        chatId,
+        `✅ <b>${escapeHtml(option)}</b> ditambahkan.\n\n<b>Pilihan Anda:</b>\n${updated.map((d) => `• ${escapeHtml(d)}`).join("\n")}\n\n<i>Bisa pilih lagi atau ketuk Selesai.</i>`,
+        MEDICAL_KEYBOARD
+      );
+    } else {
+      await sendTelegramMessage(chatId, `<b>${escapeHtml(option)}</b> sudah dipilih.\n\n<i>Bisa pilih lagi atau ketuk Selesai.</i>`, MEDICAL_KEYBOARD);
+    }
     return;
   }
   if (step === "awaiting_residence") {
@@ -322,7 +434,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     }
     await saveProfile(user.id, { residence });
     await setState(chatId, "awaiting_location");
-    await sendTelegramMessage(chatId, "Terakhir, bagikan lokasi pemantauan Anda.", LOCATION_KEYBOARD);
+    await sendTelegramMessage(chatId, "🏁 <b>Langkah terakhir!</b>\n\nBagikan <b>lokasi pemantauan</b> Anda dengan tombol di bawah.", LOCATION_KEYBOARD);
     return;
   }
   if (step === "awaiting_location") {
@@ -362,21 +474,23 @@ async function handleMenu(chatId: number, text: string) {
           .where(eq(userProfiles.userId, user.id))
           .limit(1)
       : [];
+    const genderLabel = profile?.gender === "male" ? "Laki-laki" : profile?.gender === "female" ? "Perempuan" : profile?.gender === "other" ? "Lainnya" : "-";
+    const history = profile?.medicalHistory?.length
+      ? profile.medicalHistory.map((h) => `  • ${escapeHtml(h)}`).join("\n")
+      : "  -";
     await sendTelegramMessage(
       chatId,
       [
-        `Nama: ${user?.name ?? "-"}`,
-        `Usia: ${profile?.age ?? "-"}`,
-        `Jenis kelamin: ${profile?.gender ?? "-"}`,
-        `Domisili: ${profile?.residence ?? "-"}`,
-        `Riwayat: ${profile?.medicalHistory?.join(", ") || "-"}`,
+        "👤 <b>Profil Anda</b>",
+        "",
+        `• Nama: <b>${escapeHtml(user?.name ?? "-")}</b>`,
+        `• Usia: <b>${profile?.age ?? "-"}</b> tahun`,
+        `• Jenis kelamin: <b>${escapeHtml(genderLabel)}</b>`,
+        `• Domisili: <b>${escapeHtml(profile?.residence ?? "-")}</b>`,
+        "• Riwayat penyakit:",
+        history,
       ].join("\n")
     );
-    await showMainMenu(chatId);
-    return;
-  }
-  if (["Aktivitas Fisik", "Durasi Tidur", "Gejala"].includes(text)) {
-    await sendTelegramMessage(chatId, "Pencatatan kesehatan lewat Telegram segera hadir. Untuk sekarang datanya dibaca dari aplikasi web bila ada.");
     await showMainMenu(chatId);
     return;
   }

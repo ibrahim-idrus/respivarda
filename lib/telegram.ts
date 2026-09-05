@@ -16,10 +16,15 @@ export function isValidWebhookSecret(req: Request): boolean {
   return req.headers.get("x-telegram-bot-api-secret-token") === secret;
 }
 
+export function escapeHtml(s: string): string {
+  return s.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;");
+}
+
 export async function sendTelegramMessage(
   chatId: number | string,
   text: string,
-  replyMarkup?: unknown
+  replyMarkup?: unknown,
+  opts?: { parseMode?: "HTML" | null }
 ): Promise<{ ok: boolean; error?: string }> {
   try {
     const res = await fetch(
@@ -30,6 +35,7 @@ export async function sendTelegramMessage(
         body: JSON.stringify({
           chat_id: chatId,
           text,
+          parse_mode: opts?.parseMode === null ? undefined : "HTML",
           ...(replyMarkup ? { reply_markup: replyMarkup } : {}),
         }),
       }

@@ -12,7 +12,8 @@
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
     "db:studio": "drizzle-kit studio",
-    "seed:feedback": "tsx --env-file=.env src/db/seed-feedback.ts"
+    "seed:feedback": "tsx --env-file=.env src/db/seed-feedback.ts",
+    "cron:fetch-air": "curl -s http://localhost:3000/api/cron/fetch-air"
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.13.1",
