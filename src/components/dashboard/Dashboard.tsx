@@ -31,8 +31,6 @@ export default function Dashboard() {
 
   useEffect(() => {
     let cancelled = false;
-    setLoading(true);
-    setFetchError(null);
     fetch("/api/air-quality?fetch=1")
       .then(async (r) => {
         const j = await r.json();
@@ -80,12 +78,14 @@ export default function Dashboard() {
     return liveAqi;
   }, [selected, liveAqi, myAqi]);
 
-  const handleMyLocation = useCallback(() => locate(), [locate]);
+  const handleMyLocation = useCallback(() => {
+    setMyAqiLoading(true);
+    locate();
+  }, [locate]);
 
   useEffect(() => {
     if (!coords) return;
     let cancelled = false;
-    setMyAqiLoading(true);
     fetch(`/api/air-quality/nearest?lat=${coords.lat}&lon=${coords.lon}`)
       .then(async (r) => {
         const j = await r.json();

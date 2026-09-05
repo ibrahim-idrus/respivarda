@@ -1,15 +1,14 @@
-import FeedbackTelemetry from "@/src/components/admin/FeedbackTelemetry";
 import UserRegistry from "@/src/components/admin/UserRegistry";
+
+export const metadata = {
+  title: "Konsol Pengguna — Respivarda Admin",
+  description: "Pemantauan pengguna Telegram dan sistem peringatan dini kualitas udara.",
+};
 
 export default function AdminConsolePage() {
   return (
-    <div className="grid grid-cols-1 gap-6 xl:grid-cols-12">
-      <aside className="xl:col-span-4">
-        <FeedbackTelemetry />
-      </aside>
-      <section className="min-w-0 xl:col-span-8">
-        <UserRegistry />
-      </section>
+    <div className="flex flex-col gap-6">
+      <UserRegistry />
     </div>
   );
 }

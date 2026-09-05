@@ -12,6 +12,7 @@ import {
   EyeSlash,
   LockKey,
   ShieldCheck,
+  WarningCircle,
 } from "@phosphor-icons/react";
 import {
   validateAdminLogin,
@@ -25,25 +26,61 @@ export default function AdminLogin() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [errors, setErrors] = useState<AdminLoginErrors>({});
-  const [demoSubmitted, setDemoSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [serverError, setServerError] = useState<string | null>(null);
+  const [successMessage, setSuccessMessage] = useState<string | null>(null);
 
-  const handleSubmit = (event: FormEvent<HTMLFormElement>) => {
+  const handleSubmit = async (event: FormEvent<HTMLFormElement>) => {
     event.preventDefault();
+    setServerError(null);
+    setSuccessMessage(null);
+
     const nextErrors = validateAdminLogin({ email, password });
     setErrors(nextErrors);
-    setDemoSubmitted(Object.keys(nextErrors).length === 0);
+
+    if (Object.keys(nextErrors).length > 0) {
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const res = await fetch("/api/admin/auth/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email, password, remember }),
+      });
+
+      const data = await res.json().catch(() => null);
+
+      if (!res.ok || !data?.success) {
+        setServerError(data?.error || "Gagal masuk. Periksa email dan kata sandi Anda.");
+        setLoading(false);
+        return;
+      }
+
+      setSuccessMessage("Autentikasi berhasil. Mengalihkan ke konsol admin...");
+      let nextUrl = "/admin/feedback";
+      if (typeof window !== "undefined") {
+        const params = new URLSearchParams(window.location.search);
+        nextUrl = params.get("next") || "/admin/feedback";
+        window.location.href = nextUrl;
+      }
+    } catch {
+      setServerError("Terjadi gangguan koneksi. Silakan coba sesaat lagi.");
+      setLoading(false);
+    }
   };
 
   const handleEmailChange = (value: string) => {
     setEmail(value);
     setErrors((current) => ({ ...current, email: undefined }));
-    setDemoSubmitted(false);
+    setServerError(null);
   };
 
   const handlePasswordChange = (value: string) => {
     setPassword(value);
     setErrors((current) => ({ ...current, password: undefined }));
-    setDemoSubmitted(false);
+    setServerError(null);
   };
 
   return (
@@ -72,6 +109,26 @@ export default function AdminLogin() {
               This workspace is for Telegram user activity and alert delivery.
             </p>
 
+            {serverError && (
+              <div
+                role="alert"
+                className="mt-6 flex items-start gap-3 rounded-2xl border border-error/20 bg-error/10 p-4 text-sm font-medium text-error"
+              >
+                <WarningCircle size={20} weight="fill" className="mt-0.5 shrink-0" />
+                <span>{serverError}</span>
+              </div>
+            )}
+
+            {successMessage && (
+              <div
+                role="status"
+                className="mt-6 flex items-start gap-3 rounded-2xl border border-secondary/20 bg-secondary/10 p-4 text-sm font-medium text-secondary"
+              >
+                <CheckCircle size={20} weight="fill" className="mt-0.5 shrink-0" />
+                <span>{successMessage}</span>
+              </div>
+            )}
+
             <form className="mt-8 space-y-5" onSubmit={handleSubmit} noValidate>
               <div>
                 <label className="mb-2 block text-sm font-bold text-on-surface" htmlFor="admin-email">
@@ -84,10 +141,12 @@ export default function AdminLogin() {
                   autoComplete="email"
                   required
                   value={email}
+                  disabled={loading}
                   onChange={(event) => handleEmailChange(event.target.value)}
                   aria-invalid={errors.email ? true : undefined}
                   aria-describedby={errors.email ? "admin-email-error" : undefined}
-                  className="h-12 w-full rounded-xl border border-surface-container bg-surface-container-lowest px-4 text-on-surface outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/30"
+                  className="h-12 w-full rounded-xl border border-surface-container bg-surface-container-lowest px-4 text-on-surface outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/30 disabled:opacity-50"
+                  placeholder="operator@smokewatch.id"
                 />
                 {errors.email && (
                   <p id="admin-email-error" role="alert" className="mt-2 text-sm font-medium text-error">
@@ -108,16 +167,19 @@ export default function AdminLogin() {
                     autoComplete="current-password"
                     required
                     value={password}
+                    disabled={loading}
                     onChange={(event) => handlePasswordChange(event.target.value)}
                     aria-invalid={errors.password ? true : undefined}
                     aria-describedby={errors.password ? "admin-password-error" : undefined}
-                    className="h-12 w-full rounded-xl border border-surface-container bg-surface-container-lowest px-4 pr-14 text-on-surface outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/30"
+                    className="h-12 w-full rounded-xl border border-surface-container bg-surface-container-lowest px-4 pr-14 text-on-surface outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/30 disabled:opacity-50"
+                    placeholder="••••••••"
                   />
                   <button
                     type="button"
                     aria-label={showPassword ? "Hide password" : "Show password"}
                     onClick={() => setShowPassword((current) => !current)}
-                    className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition hover:bg-surface-container focus:outline-none focus:ring-4 focus:ring-secondary/30"
+                    disabled={loading}
+                    className="absolute right-1 top-1 flex h-10 w-10 items-center justify-center rounded-lg text-on-surface-variant transition hover:bg-surface-container focus:outline-none focus:ring-4 focus:ring-secondary/30 disabled:opacity-50"
                   >
                     {showPassword ? <EyeSlash size={20} /> : <Eye size={20} />}
                   </button>
@@ -134,25 +196,24 @@ export default function AdminLogin() {
                   id="remember-admin"
                   type="checkbox"
                   checked={remember}
+                  disabled={loading}
                   onChange={(event) => setRemember(event.target.checked)}
                   className="h-4 w-4 rounded border-secondary text-secondary focus:ring-secondary/30"
                 />
                 Keep me signed in on this device
               </label>
 
-              <Button type="submit" variant="primary" size="lg" className="w-full" icon={<ArrowRight weight="bold" />}>
+              <Button
+                type="submit"
+                variant="primary"
+                size="lg"
+                loading={loading}
+                className="w-full"
+                icon={<ArrowRight weight="bold" />}
+              >
                 Sign in to admin console
               </Button>
             </form>
-
-            <div aria-live="polite" className="mt-5 min-h-6">
-              {demoSubmitted && (
-                <p className="flex items-center gap-2 text-sm font-medium text-on-surface-variant">
-                  <CheckCircle className="text-secondary" size={20} weight="fill" />
-                  Preview only — authentication is not connected yet
-                </p>
-              )}
-            </div>
 
             <div className="mt-6 border-t border-surface-container pt-5">
               <p className="flex gap-2 text-sm leading-6 text-on-surface-variant">
