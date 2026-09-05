@@ -1,5 +1,6 @@
 import type { Metadata } from "next";
 import { Plus_Jakarta_Sans } from "next/font/google";
+import Providers from "@/src/components/Providers";
 import "./globals.css";
 
 const jakarta = Plus_Jakarta_Sans({
@@ -9,14 +10,16 @@ const jakarta = Plus_Jakarta_Sans({
 });
 
 export const metadata: Metadata = {
-  title: "SmokeWatch — Public Smoke & Air Safety Platform",
-  description: "Live smoke and air quality monitoring for your district.",
+  title: "Respivarda, Monitoring Kualitas Udara dan Peringatan ISPA",
+  description: "Pantau kualitas udara dari data AQI IQAir, dapatkan peringatan saat melewati ambang, dan terima rekomendasi preventif via website, WhatsApp, dan Telegram.",
 };
 
 export default function RootLayout({ children }: LayoutProps<"/">) {
   return (
     <html lang="en" className={`${jakarta.variable} h-full antialiased`}>
-      <body className="min-h-full flex flex-col font-sans">{children}</body>
+      <body className="min-h-full flex flex-col font-sans">
+        <Providers>{children}</Providers>
+      </body>
     </html>
   );
 }

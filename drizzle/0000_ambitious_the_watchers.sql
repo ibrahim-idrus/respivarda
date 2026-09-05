@@ -3,6 +3,8 @@ CREATE TYPE "public"."alert_kind" AS ENUM('alert', 'insight', 'none');--> statem
 CREATE TYPE "public"."aqi_category" AS ENUM('GOOD', 'MODERATE', 'UNHEALTHY_SENSITIVE', 'UNHEALTHY', 'VERY_UNHEALTHY', 'HAZARDOUS');--> statement-breakpoint
 CREATE TYPE "public"."channel" AS ENUM('whatsapp', 'telegram');--> statement-breakpoint
 CREATE TYPE "public"."delivery_status" AS ENUM('pending', 'sent', 'failed');--> statement-breakpoint
+CREATE TYPE "public"."feedback_category" AS ENUM('sensor_discrepancy', 'dense_smoke', 'odor_complaint', 'map_calibration', 'app_suggestion');--> statement-breakpoint
+CREATE TYPE "public"."feedback_status" AS ENUM('pending', 'investigating', 'flagged', 'resolved');--> statement-breakpoint
 CREATE TYPE "public"."freshness" AS ENUM('FRESH', 'STALE', 'EXPIRED');--> statement-breakpoint
 CREATE TYPE "public"."gender" AS ENUM('male', 'female', 'other');--> statement-breakpoint
 CREATE TYPE "public"."platform" AS ENUM('whatsapp', 'telegram');--> statement-breakpoint
@@ -47,6 +49,25 @@ CREATE TABLE "conversation_states" (
 	"step" text NOT NULL,
 	"temp_data" jsonb,
 	"updated_at" timestamp DEFAULT now() NOT NULL
+);
+--> statement-breakpoint
+CREATE TABLE "feedback" (
+	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
+	"report_ref" text NOT NULL,
+	"category" "feedback_category" NOT NULL,
+	"description" text NOT NULL,
+	"status" "feedback_status" DEFAULT 'pending' NOT NULL,
+	"contact_name" text,
+	"contact_whatsapp" text,
+	"contact_telegram" text,
+	"location_text" text,
+	"coordinates" jsonb,
+	"user_id" uuid,
+	"affected_devices" text[],
+	"triage_notes" text,
+	"created_at" timestamp DEFAULT now() NOT NULL,
+	"updated_at" timestamp DEFAULT now() NOT NULL,
+	CONSTRAINT "feedback_report_ref_unique" UNIQUE("report_ref")
 );
 --> statement-breakpoint
 CREATE TABLE "health_logs" (
@@ -102,8 +123,10 @@ CREATE TABLE "user_profiles" (
 CREATE TABLE "users" (
 	"id" uuid PRIMARY KEY DEFAULT gen_random_uuid() NOT NULL,
 	"name" text NOT NULL,
-	"whatsapp_number" text NOT NULL,
+	"whatsapp_number" text,
 	"telegram_chat_id" text,
+	"telegram_username" text,
+	"locale" text DEFAULT 'id' NOT NULL,
 	"location_id" uuid,
 	"created_at" timestamp DEFAULT now() NOT NULL,
 	"updated_at" timestamp DEFAULT now() NOT NULL,
@@ -114,6 +137,7 @@ CREATE TABLE "users" (
 ALTER TABLE "air_quality_records" ADD CONSTRAINT "air_quality_records_location_id_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."locations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "alert_events" ADD CONSTRAINT "alert_events_air_quality_record_id_air_quality_records_id_fk" FOREIGN KEY ("air_quality_record_id") REFERENCES "public"."air_quality_records"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "alert_events" ADD CONSTRAINT "alert_events_location_id_locations_id_fk" FOREIGN KEY ("location_id") REFERENCES "public"."locations"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
+ALTER TABLE "feedback" ADD CONSTRAINT "feedback_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE set null ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "health_logs" ADD CONSTRAINT "health_logs_user_id_users_id_fk" FOREIGN KEY ("user_id") REFERENCES "public"."users"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_deliveries" ADD CONSTRAINT "notification_deliveries_personalized_insight_id_personalized_insights_id_fk" FOREIGN KEY ("personalized_insight_id") REFERENCES "public"."personalized_insights"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
 ALTER TABLE "notification_deliveries" ADD CONSTRAINT "notification_deliveries_alert_event_id_alert_events_id_fk" FOREIGN KEY ("alert_event_id") REFERENCES "public"."alert_events"("id") ON DELETE cascade ON UPDATE no action;--> statement-breakpoint
@@ -127,6 +151,9 @@ CREATE INDEX "air_quality_records_location_measured_idx" ON "air_quality_records
 CREATE INDEX "alert_events_location_triggered_idx" ON "alert_events" USING btree ("location_id","triggered_at");--> statement-breakpoint
 CREATE INDEX "alert_events_record_id_idx" ON "alert_events" USING btree ("air_quality_record_id");--> statement-breakpoint
 CREATE UNIQUE INDEX "conversation_states_platform_external_unique" ON "conversation_states" USING btree ("platform","external_id");--> statement-breakpoint
+CREATE INDEX "feedback_status_idx" ON "feedback" USING btree ("status");--> statement-breakpoint
+CREATE INDEX "feedback_category_idx" ON "feedback" USING btree ("category");--> statement-breakpoint
+CREATE INDEX "feedback_created_idx" ON "feedback" USING btree ("created_at");--> statement-breakpoint
 CREATE INDEX "health_logs_user_id_logged_at_idx" ON "health_logs" USING btree ("user_id","logged_at");--> statement-breakpoint
 CREATE UNIQUE INDEX "locations_city_state_country_unique" ON "locations" USING btree ("city","state","country");--> statement-breakpoint
 CREATE INDEX "notification_deliveries_user_channel_idx" ON "notification_deliveries" USING btree ("user_id","channel");--> statement-breakpoint

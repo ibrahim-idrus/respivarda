@@ -11,7 +11,9 @@
     "db:generate": "drizzle-kit generate",
     "db:migrate": "drizzle-kit migrate",
     "db:push": "drizzle-kit push",
-    "db:studio": "drizzle-kit studio"
+    "db:studio": "drizzle-kit studio",
+    "seed:feedback": "tsx --env-file=.env src/db/seed-feedback.ts",
+    "telegram:poll": "tsx --env-file=.env --tsconfig tsconfig.json scripts/telegram-poll.ts"
   },
   "dependencies": {
     "@cloudflare/kumo": "^2.13.1",
