@@ -1,6 +1,6 @@
 import { desc, eq } from "drizzle-orm";
 import { db } from "@/src/db";
-import { conversationStates, healthLogs, userProfiles, users } from "@/src/db/schema";
+import { conversationStates, userProfiles, users } from "@/src/db/schema";
 import { isValidWebhookSecret, sendTelegramMessage, withTyping, escapeHtml } from "@/lib/telegram";
 import { formatAqiCard, formatRecommendationBlock } from "@/lib/telegram/format";
 import { evaluateRuleEngine } from "@/lib/airvisual";
@@ -22,7 +22,7 @@ const INTRO = [
   "<b>Data yang saya simpan:</b>",
   "• Nama, usia, dan jenis kelamin",
   "• Riwayat penyakit pernapasan",
-  "• Domisili dan lokasi pemantauan",
+  "• Lokasi pemantauan",
   "",
   "Apakah Anda <b>setuju</b> melanjutkan pendaftaran?",
 ].join("\n");
@@ -150,7 +150,7 @@ async function getUser(chatId: number) {
   return rows[0] ?? null;
 }
 
-async function saveProfile(userId: string, patch: Partial<{ age: number; gender: "male" | "female" | "other"; residence: string; medicalHistory: string[] }>) {
+async function saveProfile(userId: string, patch: Partial<{ age: number; gender: "male" | "female" | "other"; medicalHistory: string[] }>) {
   await db
     .insert(userProfiles)
     .values({ userId, ...patch, updatedAt: new Date() })
@@ -256,23 +256,10 @@ async function runInitialAqiBody(chatId: number, lat: number, lon: number) {
         .where(eq(userProfiles.userId, user.id))
         .limit(1)
     : [];
-  const [healthLog] = user
-    ? await db
-        .select({
-          physicalActivity: healthLogs.physicalActivity,
-          avgSleepHours: healthLogs.avgSleepHours,
-          symptoms: healthLogs.symptoms,
-        })
-        .from(healthLogs)
-        .where(eq(healthLogs.userId, user.id))
-        .orderBy(desc(healthLogs.loggedAt))
-        .limit(1)
-    : [];
   const { insight, recommendation } = await generateAlertInsightRecommendation({
     current,
     rule,
     profile: profile ?? null,
-    healthLog: healthLog ?? null,
   });
   await setState(chatId, "onboarded");
   const isFresh = current.freshness === "FRESH";
@@ -334,7 +321,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
           .where(eq(users.id, user.id));
       }
       await setState(chatId, "awaiting_name");
-      await sendTelegramMessage(chatId, "✅ <b>Persetujuan tersimpan.</b>\n\n📝 <b>Langkah 1 dari 5</b>\nSiapa <b>nama</b> Anda?", REMOVE_KEYBOARD);
+      await sendTelegramMessage(chatId, "✅ <b>Persetujuan tersimpan.</b>\n\n📝 <b>Langkah 1 dari 4</b>\nSiapa <b>nama</b> Anda?", REMOVE_KEYBOARD);
     } else if (isNo(text)) {
       await setState(chatId, "declined");
       await sendTelegramMessage(
@@ -364,7 +351,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     }
     await db.update(users).set({ name, updatedAt: new Date() }).where(eq(users.id, user.id));
     await setState(chatId, "awaiting_age");
-    await sendTelegramMessage(chatId, `Halo <b>${escapeHtml(name)}</b>! 👋\n\n📝 <b>Langkah 2 dari 5</b>\nBerapa <b>usia</b> Anda? (0-120)`);
+    await sendTelegramMessage(chatId, `Halo <b>${escapeHtml(name)}</b>! 👋\n\n📝 <b>Langkah 2 dari 4</b>\nBerapa <b>usia</b> Anda? (0-120)`);
     return;
   }
   if (step === "awaiting_age") {
@@ -375,7 +362,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     }
     await saveProfile(user.id, { age });
     await setState(chatId, "awaiting_gender");
-    await sendTelegramMessage(chatId, "📝 <b>Langkah 3 dari 5</b>\nApa <b>jenis kelamin</b> Anda?", GENDER_KEYBOARD);
+    await sendTelegramMessage(chatId, "📝 <b>Langkah 3 dari 4</b>\nApa <b>jenis kelamin</b> Anda?", GENDER_KEYBOARD);
     return;
   }
   if (step === "awaiting_gender") {
@@ -388,7 +375,7 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     await setState(chatId, "awaiting_medical");
     await sendTelegramMessage(
       chatId,
-      "📝 <b>Langkah 4 dari 5</b>\n\n🩺 <b>Riwayat penyakit pernapasan</b>\nKetuk <b>satu atau lebih</b> tombol di bawah, lalu ketuk <b>Selesai</b>.\n\n<i>Pilih Tidak ada jika tidak ada.</i>",
+      "📝 <b>Langkah 4 dari 4</b>\n\n🩺 <b>Riwayat penyakit pernapasan</b>\nKetuk <b>satu atau lebih</b> tombol di bawah, lalu ketuk <b>Selesai</b>.\n\n<i>Pilih Tidak ada jika tidak ada.</i>",
       MEDICAL_KEYBOARD
     );
     return;
@@ -396,21 +383,21 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
   if (step === "awaiting_medical") {
     if (isMedicalNone(text)) {
       await saveProfile(user.id, { medicalHistory: [] });
-      await setState(chatId, "awaiting_residence");
-      await sendTelegramMessage(chatId, "📝 <b>Langkah 5 dari 5</b>\nDi mana <b>tempat tinggal</b> Anda? (kota / daerah)", REMOVE_KEYBOARD);
+      await setState(chatId, "awaiting_location");
+      await sendTelegramMessage(chatId, "🏁 <b>Langkah terakhir!</b>\n\nBagikan <b>lokasi pemantauan</b> Anda dengan tombol di bawah.", LOCATION_KEYBOARD);
       return;
     }
     if (isMedicalDone(text)) {
       const draft = await getMedicalDraft(user.id);
       await saveProfile(user.id, { medicalHistory: draft });
-      await setState(chatId, "awaiting_residence");
+      await setState(chatId, "awaiting_location");
       const savedLine = draft.length
         ? `✅ <b>Tersimpan:</b>\n${draft.map((d) => `• ${escapeHtml(d)}`).join("\n")}\n\n`
         : "";
       await sendTelegramMessage(
         chatId,
-        `${savedLine}📝 <b>Langkah 5 dari 5</b>\nDi mana <b>tempat tinggal</b> Anda? (kota / daerah)`,
-        REMOVE_KEYBOARD
+        `${savedLine}🏁 <b>Langkah terakhir!</b>\n\nBagikan <b>lokasi pemantauan</b> Anda dengan tombol di bawah.`,
+        LOCATION_KEYBOARD
       );
       return;
     }
@@ -431,17 +418,6 @@ async function handleText(chatId: number, text: string, from?: TelegramFrom) {
     } else {
       await sendTelegramMessage(chatId, `<b>${escapeHtml(option)}</b> sudah dipilih.\n\n<i>Bisa pilih lagi atau ketuk Selesai.</i>`, MEDICAL_KEYBOARD);
     }
-    return;
-  }
-  if (step === "awaiting_residence") {
-    const residence = text.trim();
-    if (!residence || residence.length > 200) {
-      await sendTelegramMessage(chatId, "Tempat tinggal tidak valid. Tulis kota atau daerah Anda.");
-      return;
-    }
-    await saveProfile(user.id, { residence });
-    await setState(chatId, "awaiting_location");
-    await sendTelegramMessage(chatId, "🏁 <b>Langkah terakhir!</b>\n\nBagikan <b>lokasi pemantauan</b> Anda dengan tombol di bawah.", LOCATION_KEYBOARD);
     return;
   }
   if (step === "awaiting_location") {
@@ -484,6 +460,9 @@ async function handleMenu(chatId: number, text: string) {
     const history = profile?.medicalHistory?.length
       ? profile.medicalHistory.map((h) => `  • ${escapeHtml(h)}`).join("\n")
       : "  -";
+    const locationLine = user?.latitude != null && user?.longitude != null
+      ? `${user.latitude.toFixed(4)}, ${user.longitude.toFixed(4)}`
+      : "-";
     await sendTelegramMessage(
       chatId,
       [
@@ -492,7 +471,7 @@ async function handleMenu(chatId: number, text: string) {
         `• Nama: <b>${escapeHtml(user?.name ?? "-")}</b>`,
         `• Usia: <b>${profile?.age ?? "-"}</b> tahun`,
         `• Jenis kelamin: <b>${escapeHtml(genderLabel)}</b>`,
-        `• Domisili: <b>${escapeHtml(profile?.residence ?? "-")}</b>`,
+        `• Lokasi pantau: <b>${escapeHtml(locationLine)}</b>`,
         "• Riwayat penyakit:",
         history,
       ].join("\n")

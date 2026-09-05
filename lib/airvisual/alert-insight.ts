@@ -66,11 +66,11 @@ export function resolveAlertInsight(current: NormalizedAirQuality, rule: RuleEng
 export async function resolveAlertInsightWithAI(
   current: NormalizedAirQuality,
   rule: RuleEngineResult,
-  opts?: { profile?: { age?: number | null; gender?: string | null; medicalHistory?: string[] | null } | null; healthLog?: { physicalActivity?: string | null; avgSleepHours?: number | string | null; symptoms?: string[] | null } | null }
+  opts?: { profile?: { age?: number | null; gender?: string | null; medicalHistory?: string[] | null } | null }
 ): Promise<AlertInsightResult> {
   const base = resolveAlertInsight(current, rule);
   if (base.kind === 'none') return base;
   const { generateRecommendation } = await import('@/lib/ai/recommendation');
-  const ai = await generateRecommendation({ current, rule, kind: base.kind, profile: opts?.profile, healthLog: opts?.healthLog });
+  const ai = await generateRecommendation({ current, rule, kind: base.kind, profile: opts?.profile });
   return { kind: base.kind, title: base.title, body: ai.insight, recommendation: ai.recommendation };
 }

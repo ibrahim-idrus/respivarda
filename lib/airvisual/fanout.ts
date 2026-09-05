@@ -2,7 +2,6 @@ import { and, desc, eq, isNotNull } from "drizzle-orm";
 import { db } from "@/src/db";
 import {
   alertEvents,
-  healthLogs,
   notificationDeliveries,
   personalizedInsights,
   userProfiles,
@@ -112,24 +111,12 @@ export async function fanoutLocationAlert(
     }
     result.triggered = true;
 
-    const [healthLog] = await db
-      .select({
-        physicalActivity: healthLogs.physicalActivity,
-        avgSleepHours: healthLogs.avgSleepHours,
-        symptoms: healthLogs.symptoms,
-      })
-      .from(healthLogs)
-      .where(eq(healthLogs.userId, user.id))
-      .orderBy(desc(healthLogs.loggedAt))
-      .limit(1);
-
     const ai = await generateRecommendation({
       current,
       rule,
       kind: "alert",
       atRisk,
       profile: profile ?? null,
-      healthLog: healthLog ?? null,
     });
 
     const [alertEvent] = await db

@@ -17,7 +17,6 @@ export type RecommendationInput = {
   kind: "alert" | "insight" | "none";
   atRisk?: boolean;
   profile?: { age?: number | null; gender?: string | null; medicalHistory?: string[] | null } | null;
-  healthLog?: { physicalActivity?: string | null; avgSleepHours?: number | string | null; symptoms?: string[] | null } | null;
 };
 
 export function isAtRiskUser(profile?: RecommendationInput["profile"]): boolean {
@@ -53,7 +52,7 @@ function fallback(input: RecommendationInput): AIRecommendation {
 }
 
 function buildPrompt(input: RecommendationInput): string {
-  const { current, rule, kind, atRisk, profile, healthLog } = input;
+  const { current, rule, kind, atRisk, profile } = input;
   const riskLine = atRisk
     ? "- Kelompok: BERISIKO (memiliki riwayat penyakit pernapasan dan/atau usia rentan). Naikkan urgensi satu tingkat dibanding populasi umum."
     : "- Kelompok: umum (tanpa riwayat penyakit tercatat).";
@@ -71,7 +70,6 @@ DATA PENGGUNA (minimisasi, tanpa nama/identitas):
 - Usia ${profile?.age ?? "-"}, gender ${profile?.gender ?? "-"}
 - Jumlah riwayat penyakit pernapasan: ${(profile?.medicalHistory ?? []).length}${(profile?.medicalHistory ?? []).length > 0 ? ` (${profile?.medicalHistory?.slice(0, 3).join(", ")})` : ""}
 ${riskLine}
-- Health log: aktivitas ${healthLog?.physicalActivity ?? "-"}, tidur ${healthLog?.avgSleepHours ?? "-"} jam, gejala ${healthLog?.symptoms?.join(", ") || "-"}
 
 TUGAS: keluarkan JSON { insight: string (1 kalimat), recommendation: string (2-4 kalimat preventif personal, TANPA bullet/numbering/emoji, plain sentences), risk_level: "LOW"|"MODERATE"|"HIGH"|"CRITICAL" }. Hanya JSON.`;
 }
@@ -94,7 +92,6 @@ export async function generateAlertInsightRecommendation(params: {
   current: NormalizedAirQuality;
   rule: RuleEngineResult;
   profile?: RecommendationInput["profile"];
-  healthLog?: RecommendationInput["healthLog"];
 }): Promise<{ kind: "alert" | "insight" | "none"; insight: string | null; recommendation: string | null; ai: AIRecommendation | null }> {
   const atRisk = isAtRiskUser(params.profile);
   const effectiveSeverity = atRisk && params.rule.severity === 1 ? 2 : params.rule.severity;
@@ -105,6 +102,6 @@ export async function generateAlertInsightRecommendation(params: {
         ? "insight"
         : "none";
   if (kind === "none") return { kind, insight: null, recommendation: null, ai: null };
-  const ai = await generateRecommendation({ current: params.current, rule: params.rule, kind, atRisk, profile: params.profile, healthLog: params.healthLog });
+  const ai = await generateRecommendation({ current: params.current, rule: params.rule, kind, atRisk, profile: params.profile });
   return { kind, insight: ai.insight, recommendation: ai.recommendation, ai };
 }

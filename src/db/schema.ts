@@ -5,7 +5,6 @@ import {
   index,
   integer,
   jsonb,
-  numeric,
   pgEnum,
   pgTable,
   text,
@@ -15,7 +14,6 @@ import {
 } from "drizzle-orm/pg-core";
 
 export const genderEnum = pgEnum("gender", ["male", "female", "other"]);
-export const activityLevelEnum = pgEnum("activity_level", ["low", "moderate", "high"]);
 export const aqiCategoryEnum = pgEnum("aqi_category", [
   "GOOD",
   "MODERATE",
@@ -93,25 +91,9 @@ export const userProfiles = pgTable("user_profiles", {
     .references(() => users.id, { onDelete: "cascade" }),
   age: integer("age"),
   gender: genderEnum("gender"),
-  residence: text("residence"),
   medicalHistory: text("medical_history").array(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });
-
-export const healthLogs = pgTable(
-  "health_logs",
-  {
-    id: uuid("id").primaryKey().defaultRandom(),
-    userId: uuid("user_id")
-      .notNull()
-      .references(() => users.id, { onDelete: "cascade" }),
-    physicalActivity: activityLevelEnum("physical_activity"),
-    avgSleepHours: numeric("avg_sleep_hours", { precision: 3, scale: 1 }),
-    symptoms: text("symptoms").array(),
-    loggedAt: timestamp("logged_at").defaultNow().notNull(),
-  },
-  (t) => [index("health_logs_user_id_logged_at_idx").on(t.userId, t.loggedAt)]
-);
 
 export const airQualityRecords = pgTable(
   "air_quality_records",
@@ -261,7 +243,6 @@ export const locationsRelations = relations(locations, ({ many }) => ({
 export const usersRelations = relations(users, ({ one, many }) => ({
   location: one(locations, { fields: [users.locationId], references: [locations.id] }),
   profile: one(userProfiles, { fields: [users.id], references: [userProfiles.userId] }),
-  healthLogs: many(healthLogs),
   insights: many(personalizedInsights),
   deliveries: many(notificationDeliveries),
   feedback: many(feedback),
@@ -273,10 +254,6 @@ export const feedbackRelations = relations(feedback, ({ one }) => ({
 
 export const userProfilesRelations = relations(userProfiles, ({ one }) => ({
   user: one(users, { fields: [userProfiles.userId], references: [users.id] }),
-}));
-
-export const healthLogsRelations = relations(healthLogs, ({ one }) => ({
-  user: one(users, { fields: [healthLogs.userId], references: [users.id] }),
 }));
 
 export const airQualityRecordsRelations = relations(airQualityRecords, ({ one, many }) => ({
