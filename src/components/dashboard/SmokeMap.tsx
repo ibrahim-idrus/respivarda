@@ -1,15 +1,13 @@
 "use client";
 
-import { MapContainer, TileLayer, Circle, Marker } from "react-leaflet";
+import { Circle, MapContainer, Marker, Polygon, TileLayer } from "react-leaflet";
 import L from "leaflet";
 import "leaflet/dist/leaflet.css";
-import { Wind } from "@phosphor-icons/react";
+import { Crosshair, Wind } from "@phosphor-icons/react";
 import type { District, Scenario } from "@/src/lib/mock-data";
 import { SCENARIO_STYLES } from "@/src/lib/mock-data";
-
-// ponytail: single OSM tile layer + native zoomControl — ceiling: no
-// satellite/terrain toggle and default Leaflet chrome. upgrade: add
-// LayersControl with an Esri tile layer; CSS-override .leaflet-control-zoom.
+import { BALIKPAPAN_POLYGON, BALIKPAPAN_STATION, STATION_COVERAGE_M, isInsideBalikpapan } from "@/src/lib/geo/balikpapan";
+import type { GeoState } from "@/src/hooks/useGeolocation";
 
 const pin = (color: string) =>
   L.divIcon({
@@ -19,58 +17,60 @@ const pin = (color: string) =>
     html: `<span style="display:block;width:24px;height:24px;border-radius:9999px;background:${color};border:4px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35)"></span>`,
   });
 
+const userPin = L.divIcon({
+  className: "",
+  iconSize: [28, 28],
+  iconAnchor: [14, 14],
+  html: `<span style="display:block;width:28px;height:28px;border-radius:9999px;background:#2563eb;border:4px solid #fff;box-shadow:0 2px 8px rgba(0,0,0,.35)"></span>`,
+});
+
+const stationPin = L.divIcon({
+  className: "",
+  iconSize: [20, 20],
+  iconAnchor: [10, 10],
+  html: `<span style="display:block;width:20px;height:20px;border-radius:4px;background:#0f172a;border:3px solid #fff;box-shadow:0 1px 6px rgba(0,0,0,.35)"></span>`,
+});
+
 const RADIUS: Record<Scenario, number> = {
   affected: 2600,
   warning: 3600,
   safe: 2600,
 };
 
-export default function SmokeMap({ district }: { district: District }) {
+export default function SmokeMap({ district, userCoords }: { district: District; userCoords: GeoState }) {
   const style = SCENARIO_STYLES[district.scenario];
   const center: [number, number] = [district.lat, district.lng];
+  const inside = userCoords ? isInsideBalikpapan(userCoords.lat, userCoords.lon) : null;
 
   return (
     <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-surface-container shadow-sm">
-      <MapContainer
-        key={district.id}
-        center={center}
-        zoom={12}
-        scrollWheelZoom={false}
-        className="h-full w-full"
-      >
-        <TileLayer
-          attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>'
-          url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
-        />
-        <Circle
-          center={center}
-          radius={RADIUS[district.scenario]}
-          pathOptions={{
-            color: style.mapColor,
-            fillColor: style.mapColor,
-            fillOpacity: 0.18,
-            weight: 2,
-            dashArray: "6 6",
-          }}
-        />
+      <MapContainer key={district.id} center={center} zoom={12} scrollWheelZoom={false} className="h-full w-full">
+        <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
+        <Polygon positions={BALIKPAPAN_POLYGON} pathOptions={{ color: "#1e40af", fillColor: "#1e40af", fillOpacity: 0.06, weight: 2, dashArray: "8 6" }} />
+        <Circle center={BALIKPAPAN_STATION} radius={STATION_COVERAGE_M} pathOptions={{ color: "#0f172a", fillColor: "#0f172a", fillOpacity: 0.04, weight: 1, dashArray: "4 6" }} />
+        <Circle center={center} radius={RADIUS[district.scenario]} pathOptions={{ color: style.mapColor, fillColor: style.mapColor, fillOpacity: 0.18, weight: 2, dashArray: "6 6" }} />
+        <Marker position={BALIKPAPAN_STATION} icon={stationPin} />
         <Marker position={center} icon={pin(style.mapColor)} />
+        {userCoords && <Marker position={[userCoords.lat, userCoords.lon]} icon={userPin} />}
       </MapContainer>
 
-      {/* Overlay chips */}
       <div className="absolute left-4 top-4 z-[1000] rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
         <p className="flex items-center gap-1.5">
           <span className={`h-2 w-2 rounded-full ${style.dot}`} />
           Active Monitoring Point • {district.distanceKm} km from plume center
         </p>
       </div>
+      {userCoords && (
+        <div className="absolute left-4 top-14 z-[1000] flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
+          <Crosshair size={14} className="text-primary" />
+          {inside ? "Di dalam domisili Balikpapan (coverage stasiun)" : "Di luar domisili Balikpapan"}
+        </div>
+      )}
       <div className="absolute bottom-4 left-4 z-[1000] flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
         <Wind size={16} className="text-secondary" />
         Wind: 14 km/h SW • Humidity: 58%
       </div>
-      <div className="absolute bottom-4 right-4 z-[1000] rounded-xl bg-primary/90 px-3 py-2 text-[11px] font-medium text-white shadow">
-        Satellite &amp; Terrestrial Sensor Feed Live • Data: BMKG Sepinggan &amp;
-        Sentinel-5P
-      </div>
+      <div className="absolute bottom-4 right-4 z-[1000] rounded-xl bg-primary/90 px-3 py-2 text-[11px] font-medium text-white shadow">1 fetch: Balikpapan via nearest_city • Hotspot: AirVisual tidak sediakan — lihat catatan di panel</div>
     </div>
   );
 }

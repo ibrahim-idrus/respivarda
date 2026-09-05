@@ -1,18 +1,18 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import dynamic from "next/dynamic";
 import { Dialog, Button } from "@cloudflare/kumo";
-import { CheckCircle } from "@phosphor-icons/react";
+import { CheckCircle, Fire, MapPin, Info } from "@phosphor-icons/react";
 import Header from "./Header";
 import LocationBar from "./LocationBar";
 import SurroundingDistricts from "./SurroundingDistricts";
 import StatusPanel from "./StatusPanel";
 import { DISTRICTS, SCENARIO_STYLES } from "@/src/lib/mock-data";
 import type { District, Scenario } from "@/src/lib/mock-data";
+import { useGeolocation } from "@/src/hooks/useGeolocation";
+import { isInsideBalikpapan } from "@/src/lib/geo/balikpapan";
 
-// ponytail: in-memory state — ceiling: refresh resets scenario/district.
-// upgrade: URL search param or localStorage.
 const SmokeMap = dynamic(() => import("./SmokeMap"), {
   ssr: false,
   loading: () => (
@@ -30,20 +30,26 @@ const DISTRICT_BY_SCENARIO: Record<Scenario, string> = {
 
 export default function Dashboard() {
   const [district, setDistrict] = useState<District>(DISTRICTS[0]);
-  const [locating, setLocating] = useState(false);
   const [modalOpen, setModalOpen] = useState(false);
+  const { coords, loading: locating, error: geoError, locate } = useGeolocation();
+  const [liveAqi, setLiveAqi] = useState<{ usAqi: number; category: string; city: string; fetchedAt: string } | null>(null);
 
   const selectScenario = (s: Scenario) => {
     const target = DISTRICTS.find((d) => d.id === DISTRICT_BY_SCENARIO[s]);
     if (target) setDistrict(target);
   };
 
-  // ponytail: simulated sync — ceiling: fixed timeout, never touches
-  // geolocation or network. upgrade: real fix + API sync.
-  const useMyLocation = () => {
-    setLocating(true);
-    setTimeout(() => setLocating(false), 1800);
-  };
+  const useMyLocation = () => locate();
+
+  useEffect(() => {
+    fetch("/api/air-quality?fetch=1")
+      .then((r) => r.json())
+      .then((j) => {
+        const latest = j.data;
+        if (latest?.airQualityRecord) setLiveAqi({ usAqi: latest.airQualityRecord.usAqi, category: latest.aqiCategory, city: latest.airQualityRecord.city, fetchedAt: latest.storedAt });
+      })
+      .catch(() => {});
+  }, []);
 
   return (
     <>
@@ -58,15 +64,29 @@ export default function Dashboard() {
         />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
-          <div className="mb-4">
-            <h2 className="text-xl font-extrabold tracking-tight">
-              Regional Smoke Dispersion &amp; Proximity Map
-            </h2>
-            <p className="text-sm text-on-surface-variant">
-              Balikpapan municipal live particulate drift and geographic radar
-            </p>
+          <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
+            <div>
+              <h2 className="text-xl font-extrabold tracking-tight">Regional Smoke Dispersion &amp; Proximity Map</h2>
+              <p className="text-sm text-on-surface-variant">Balikpapan — 1 fetch via AirVisual nearest_city (hemat limit) • Arsiran = domisili + coverage 15 km</p>
+            </div>
+            {liveAqi && (
+              <div className="rounded-xl border border-surface-container bg-surface-container-lowest px-3 py-2 text-xs">
+                <p className="font-bold flex items-center gap-1.5"><MapPin size={14} className="text-secondary" /> {liveAqi.city} • AQI {liveAqi.usAqi} {liveAqi.category}</p>
+                <p className="text-on-surface-variant">Fetched {new Date(liveAqi.fetchedAt).toLocaleString("id-ID")}</p>
+              </div>
+            )}
           </div>
-          <SmokeMap district={district} />
+          {geoError && <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{geoError}</p>}
+          {coords && <p className="mb-3 rounded-xl border border-surface-container bg-white px-3 py-2 text-xs">Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)} — {isInsideBalikpapan(coords.lat, coords.lon) ? "Di dalam domisili Balikpapan (ter-cover stasiun)" : "Di luar domisili Balikpapan (data tetap pakai Balikpapan terdekat)"}</p>}
+          <SmokeMap district={district} userCoords={coords} />
+        </section>
+
+        <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
+          <div className="rounded-2xl border border-amber-200 bg-amber-50 p-4 text-sm">
+            <p className="flex items-center gap-2 font-extrabold text-amber-900"><Fire size={18} weight="fill" className="text-amber-600" /> Sumber titik kebakaran / hotspot</p>
+            <p className="mt-1 text-amber-800">AirVisual <code className="rounded bg-amber-100 px-1">nearest_city</code> tidak menyediakan hotspot — hanya AQI {liveAqi?.usAqi ?? "—"} dan polutan untuk Balikpapan. Titik karhutla butuh API terpisah seperti NASA FIRMS (VIIRS/MODIS) atau BMKG — belum diaktifkan agar tidak menambah limit. Saat AQI naik + PM2.5 dominan, anggap ada pengaruh asap di sekitar.</p>
+            <p className="mt-2 flex items-center gap-1.5 text-xs text-amber-700"><Info size={14} /> Stasiun AirVisual butuh plan Startup berbayar; coverage di peta hanya visualisasi 15 km dari koordinat Balikpapan, bukan radius resmi stasiun.</p>
+          </div>
         </section>
 
         <SurroundingDistricts activeId={district.id} onSelect={setDistrict} />
