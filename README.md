@@ -32,6 +32,8 @@ Untuk menjalankan aplikasi ini diperlukan beberapa kredensial penting, diantaran
 2. TELEGRAM_BOT_USERNAME
 3. TELEGRAM_URL
 4. AIR_VISUAL_API_KEY
+5. GEMINI_API_KEY
+6. CRON_SECRET
+7. ADMIN_*
 
-Setelah itu dapat menginstall package dengan command npm install jika menggunakan npm, jika menggunakan package manager lain bisa disesuaikan masing-masing
-jika sudah selesai menginstall, maka cukup jalankan npm run build, dan setelah selesai build maka jalankan npm start.
+Install dependensi dengan npm install (atau sesuaikan dengan package manager masing-masing). Sinkronkan skema database dengan npm run db:push untuk pengembangan, atau npm run db:migrate untuk produksi. Untuk pengembangan jalankan npm run dev, untuk produksi jalankan npm run build lalu npm start. Terakhir,
