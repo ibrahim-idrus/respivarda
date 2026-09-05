@@ -1,7 +1,7 @@
 # SmokeWatch Admin Login Design
 
-**Date:** 2026-09-05  
-**Status:** Approved direction; ready for written-spec review  
+**Date:** 2026-09-05
+**Status:** Approved direction; ready for written-spec review
 **Scope:** UI-only admin entry point
 
 ## Goal
