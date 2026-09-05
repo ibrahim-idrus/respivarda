@@ -111,7 +111,7 @@ export default function FeedbackForm() {
           <Checkbox
             label={
               captchaVerified
-                ? "I am not a robot — Token Verified"
+                ? "I am not a robot, Token Verified"
                 : "I am not a robot"
             }
             checked={captchaVerified}
