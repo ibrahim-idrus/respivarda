@@ -21,6 +21,23 @@ export default function FeedbackForm() {
   const [captchaErr, setCaptchaErr] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
+  // ponytail: public anonymous form only collects a free-text description.
+  // ceiling: category hard-coded to app_suggestion (least-wrong bucket) and no
+  // location/device capture. upgrade: add category picker + optional location
+  // fields when the design calls for them.
+  const submit = useMutation({
+    mutationFn: async (description: string) => {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: "app_suggestion", description }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Gagal mengirim");
+      return res.json() as Promise<{ id: string; reportRef: string }>;
+    },
+    onSuccess: () => setSubmitted(true),
+  });
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!value.trim()) return;
