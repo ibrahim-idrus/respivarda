@@ -17,6 +17,9 @@
 /.next/
 /out/
 
+# local linked worktrees
+/.worktrees/
+
 # production
 /build
 
