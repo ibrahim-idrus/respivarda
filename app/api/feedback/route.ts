@@ -12,9 +12,7 @@ const VALID_STATUS = new Set<string>([
   "all",
 ]);
 
-// ponytail: no auth — public triage submission per plan; admin GET shares the
-// route behind the same lack of middleware. ceiling: anyone can list/update
-// feedback. upgrade: clerk middleware role check per PLAN feedback Security.
+
 export async function POST(req: NextRequest) {
   let body: unknown;
   try {
@@ -71,9 +69,7 @@ export async function POST(req: NextRequest) {
     );
   }
 
-  // ponytail: reportRef = FB-<year>-(count+1). ceiling: race on concurrent
-  // insert (both read same count). upgrade: DB sequence / retry on unique
-  // violation. Acceptable at pilot scale.
+
   const year = new Date().getFullYear();
   const [{ value: n }] = await db
     .select({ value: count() })
@@ -131,7 +127,7 @@ export async function GET(req: NextRequest) {
       .from(feedback)
       .where(where)
       .orderBy(desc(feedback.createdAt))
-      .limit(100), // ponytail: hard cap, no cursor. ceiling: oldest rows unreachable past 100. upgrade: cursor pagination.
+      .limit(100), 
     db
       .select({ status: feedback.status, value: count() })
       .from(feedback)

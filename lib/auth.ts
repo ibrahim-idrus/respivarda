@@ -91,7 +91,7 @@ export function verifySessionToken(token: string | undefined | null): SessionPay
     const payload = JSON.parse(payloadJson) as SessionPayload;
 
     if (payload.exp && payload.exp < Math.floor(Date.now() / 1000)) {
-      return null;
+      return null; // Expired
     }
 
     return payload;

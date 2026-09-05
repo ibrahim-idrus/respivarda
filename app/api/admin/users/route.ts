@@ -72,7 +72,7 @@ export async function GET(req: Request) {
         .then((r) => r[0]?.value ?? 0),
     ]);
 
-    // Calculate metrics
+  
     const total = totalCountResult;
     const totalTelegram = telegramCountResult;
     let activeAlertUsers = 0;

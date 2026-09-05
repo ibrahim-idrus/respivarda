@@ -26,7 +26,7 @@ export default function AdminSidebar() {
     try {
       await fetch("/api/admin/auth/logout", { method: "POST" });
     } catch {
-      // Proceed to login
+
     }
     router.push("/admin/login");
     router.refresh();

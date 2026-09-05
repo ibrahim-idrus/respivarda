@@ -9,6 +9,7 @@ export default function Header() {
   const [open, setOpen] = useState(false);
   const pathname = usePathname();
   const isHome = pathname === "/";
+  const isAbout = pathname === "/about";
   const isFeedback = pathname === "/feedback";
 
   return (
@@ -27,6 +28,12 @@ export default function Header() {
             className={`rounded-full px-3 py-1.5 transition-colors ${isHome ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
           >
             Beranda
+          </Link>
+          <Link
+            href="/about"
+            className={`rounded-full px-3 py-1.5 transition-colors ${isAbout ? "bg-secondary-container text-on-secondary-container" : "text-on-surface-variant hover:bg-surface-container-low hover:text-on-surface"}`}
+          >
+            Tentang Respivarda
           </Link>
           <Link
             href="/feedback"
@@ -55,6 +62,13 @@ export default function Header() {
               className={`rounded-xl px-3 py-2.5 ${isHome ? "bg-secondary-container text-on-secondary-container" : "text-on-surface hover:bg-surface-container-low"}`}
             >
               Beranda
+            </Link>
+            <Link
+              href="/about"
+              onClick={() => setOpen(false)}
+              className={`rounded-xl px-3 py-2.5 ${isAbout ? "bg-secondary-container text-on-secondary-container" : "text-on-surface hover:bg-surface-container-low"}`}
+            >
+              Tentang Respivarda
             </Link>
             <Link
               href="/feedback"

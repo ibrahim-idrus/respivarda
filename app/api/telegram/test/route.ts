@@ -24,7 +24,7 @@ export async function POST(req: Request) {
       customMessage = body.message.trim();
     }
   } catch {
-    // No body or not JSON, proceed to default
+
   }
 
   if (!targetChatId) {
