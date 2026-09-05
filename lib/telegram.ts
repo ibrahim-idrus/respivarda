@@ -1,6 +1,3 @@
-// Server-only Telegram Bot API helper. Never import from client components.
-// Token lives in Telegram_URL (or TELEGRAM_URL) env var and must never be
-// logged, returned, or placed in NEXT_PUBLIC_*.
 
 function getToken(): string {
   const token = process.env.Telegram_URL ?? process.env.TELEGRAM_URL;
@@ -12,8 +9,7 @@ export function getBotUsername(): string | null {
   return process.env.TELEGRAM_BOT_USERNAME ?? null;
 }
 
-// Validates the X-Telegram-Bot-Api-Secret-Token header against
-// TELEGRAM_WEBHOOK_SECRET. Fails open only when no secret is configured.
+
 export function isValidWebhookSecret(req: Request): boolean {
   const secret = process.env.TELEGRAM_WEBHOOK_SECRET;
   if (!secret) return true;

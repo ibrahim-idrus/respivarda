@@ -1,9 +1,8 @@
 import { NextResponse, type NextRequest } from "next/server";
 
-// Self-contained cookie name to keep middleware edge-compatible without node:crypto
-export const ADMIN_COOKIE_NAME = "respivarda_admin_session";
+const ADMIN_COOKIE_NAME = "respivarda_admin_session";
 
-export function middleware(request: NextRequest) {
+export function proxy(request: NextRequest) {
   const { pathname } = request.nextUrl;
 
   if (pathname.startsWith("/admin")) {

@@ -78,6 +78,8 @@ export const users = pgTable(
     // nullable: Telegram usernames are optional and can change
     telegramUsername: text("telegram_username"),
     locale: text("locale").default("id").notNull(),
+    consentGiven: boolean("consent_given").default(false).notNull(),
+    consentAt: timestamp("consent_at"),
     // nullable: raw coords from Telegram location share (separate from locationId)
     latitude: doublePrecision("latitude"),
     longitude: doublePrecision("longitude"),
@@ -94,6 +96,7 @@ export const userProfiles = pgTable("user_profiles", {
     .references(() => users.id, { onDelete: "cascade" }),
   age: integer("age"),
   gender: genderEnum("gender"),
+  residence: text("residence"),
   medicalHistory: text("medical_history").array(),
   updatedAt: timestamp("updated_at").defaultNow().notNull(),
 });

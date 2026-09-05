@@ -15,6 +15,13 @@
       "when": 1788606605149,
       "tag": "0001_telegram_user_location",
       "breakpoints": true
+    },
+    {
+      "idx": 2,
+      "version": "7",
+      "when": 1788619708894,
+      "tag": "0002_concerned_agent_brand",
+      "breakpoints": true
     }
   ]
 }
