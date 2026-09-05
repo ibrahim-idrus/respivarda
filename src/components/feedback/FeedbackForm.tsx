@@ -2,60 +2,68 @@
 
 import { useState } from "react";
 import Link from "next/link";
-import { Button, Checkbox, Textarea } from "@cloudflare/kumo";
-import {
-  CheckCircle,
-  Info,
-  LockSimple,
-  PaperPlaneRight,
-} from "@phosphor-icons/react";
 
 const MAX_LEN = 1200;
 
+type Kind = "saran" | "bug";
+
+function genCaptcha() {
+  const a = 2 + Math.floor(Math.random() * 8);
+  const b = 2 + Math.floor(Math.random() * 8);
+  return { a, b, ans: a + b };
+}
+
 export default function FeedbackForm() {
-  const [description, setDescription] = useState("");
-  const [captchaVerified, setCaptchaVerified] = useState(false);
-  const [captchaError, setCaptchaError] = useState(false);
+  const [kind, setKind] = useState<Kind>("saran");
+  const [value, setValue] = useState("");
+  const [captcha, setCaptcha] = useState(() => genCaptcha());
+  const [captchaInput, setCaptchaInput] = useState("");
+  const [captchaErr, setCaptchaErr] = useState("");
   const [submitted, setSubmitted] = useState(false);
 
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    if (!description.trim()) return;
-    // ponytail: fake captcha — ceiling: any bot passes. upgrade: real
-    // turnstile/hcaptcha widget.
-    if (!captchaVerified) {
-      setCaptchaError(true);
-      setTimeout(() => setCaptchaError(false), 1500);
+    if (!value.trim()) return;
+    if (Number(captchaInput) !== captcha.ans) {
+      setCaptchaErr("Jawaban captcha salah. Coba lagi.");
       return;
     }
-    // ponytail: submit is local state — ceiling: refresh loses it, nothing
-    // persisted. upgrade: POST to /api/feedback + drizzle.
+    setCaptchaErr("");
     setSubmitted(true);
   };
 
-  const onReset = () => {
-    setDescription("");
-    setCaptchaVerified(false);
-    setSubmitted(false);
+  const refreshCaptcha = () => {
+    setCaptcha(genCaptcha());
+    setCaptchaInput("");
+    setCaptchaErr("");
   };
 
   if (submitted) {
     return (
-      <div className="flex min-h-[420px] flex-col items-center justify-center gap-4 rounded-xl bg-surface-container-lowest p-6 text-center shadow-md md:p-8">
-        <CheckCircle size={56} weight="fill" className="text-secondary" />
-        <h2 className="text-xl font-bold tracking-tight">
-          Report received. Thank you.
-        </h2>
-        <p className="max-w-md text-sm text-on-surface-variant">
-          Your anonymous report has been queued for review by the civic
-          telemetry team.
+      <div className="rounded-2xl border border-outline-variant bg-white p-8 text-center">
+        <p className="text-base font-semibold text-on-surface">Masukan terkirim</p>
+        <p className="mt-1 text-sm leading-6 text-on-surface-variant">
+          Terima kasih. Laporan {kind === "bug" ? "bug" : "saran"} sudah masuk antrean tim Respivarda.
         </p>
-        <div className="mt-2 flex flex-wrap items-center justify-center gap-3">
-          <Button variant="primary" onClick={onReset}>
-            Send Another Report
-          </Button>
-          <Link href="/">
-            <Button variant="secondary">Return to Dashboard</Button>
+        <div className="mt-6 flex flex-wrap justify-center gap-3">
+          <button
+            type="button"
+            onClick={() => {
+              setValue("");
+              setCaptchaInput("");
+              setCaptchaErr("");
+              setCaptcha(genCaptcha());
+              setSubmitted(false);
+            }}
+            className="rounded-full bg-secondary px-5 py-2.5 text-sm font-semibold text-white hover:bg-[#005a52] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2"
+          >
+            Kirim lagi
+          </button>
+          <Link
+            href="/"
+            className="rounded-full border border-outline-variant bg-white px-5 py-2.5 text-sm font-semibold text-on-surface hover:bg-surface-container-low focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+          >
+            Kembali ke beranda
           </Link>
         </div>
       </div>
@@ -63,79 +71,96 @@ export default function FeedbackForm() {
   }
 
   return (
-    <div className="rounded-xl bg-surface-container-lowest p-6 shadow-md md:p-8">
-      <form className="flex flex-col gap-8" onSubmit={onSubmit}>
-        <div className="flex flex-col gap-1">
-          <div className="flex items-center justify-between">
-            <label
-              htmlFor="report-description"
-              className="flex items-center gap-2 text-base font-semibold tracking-tight text-on-surface"
-            >
-              Description
-              <span className="text-[11px] font-bold text-error">*</span>
-            </label>
-            <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-              {description.length} / {MAX_LEN}
-            </span>
+    <div className="rounded-2xl border border-outline-variant bg-white p-6">
+      <form onSubmit={onSubmit} className="flex flex-col gap-5">
+        <fieldset className="flex flex-col gap-2">
+          <legend className="text-sm font-semibold text-on-surface">Jenis masukan</legend>
+          <div className="flex gap-2">
+            {(["saran", "bug"] as const).map((k) => (
+              <button
+                key={k}
+                type="button"
+                aria-pressed={kind === k}
+                onClick={() => setKind(k)}
+                className={`rounded-full border px-4 py-2 text-sm font-semibold transition-colors focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary ${
+                  kind === k
+                    ? "border-secondary bg-secondary-container text-on-secondary-container"
+                    : "border-outline-variant bg-white text-on-surface hover:bg-surface-container-low"
+                }`}
+              >
+                {k === "saran" ? "Saran" : "Bug"}
+              </button>
+            ))}
           </div>
-          <p className="text-[13px] text-on-surface-variant">
-            Describe your observation, sensor discrepancy, or suggestions for
-            the platform
+          <p className="text-xs leading-5 text-on-surface-variant">
+            {kind === "bug" ? "Jelaskan langkah untuk mereproduksi bug dan perangkat yang dipakai." : "Tulis usulan fitur atau perbaikan yang kamu harapkan."}
           </p>
-          <div className="mt-2">
-            <Textarea
-              id="report-description"
-              name="description"
-              required
-              rows={7}
-              maxLength={MAX_LEN}
-              value={description}
-              onValueChange={setDescription}
-              placeholder="e.g., Heavy smoke odor observed along Jl. MT Haryono around 14:30, but nearby sensor SW-04 reports clean air. Please verify optical readings..."
-              className="min-h-[160px]"
-            />
-          </div>
-          <div className="mt-2 flex items-center gap-2 text-on-surface-variant">
-            <Info size={16} />
-            <span className="text-[13px]">
-              Do not include personal identifiers in your report.
+        </fieldset>
+
+        <div className="flex flex-col gap-2">
+          <div className="flex items-baseline justify-between gap-4">
+            <label htmlFor="catatan" className="text-sm font-semibold text-on-surface">
+              Catatan <span className="font-normal text-error" aria-hidden>*</span>
+            </label>
+            <span className="text-xs tabular-nums text-on-surface-variant">
+              {value.length} / {MAX_LEN}
             </span>
           </div>
-        </div>
-
-        <div
-          className={`flex items-center justify-between gap-4 rounded-lg border border-surface-container bg-surface-container-low p-4 transition-colors ${
-            captchaError ? "bg-error-container" : ""
-          }`}
-        >
-          <Checkbox
-            label={
-              captchaVerified
-                ? "I am not a robot, Token Verified"
-                : "I am not a robot"
-            }
-            checked={captchaVerified}
-            onCheckedChange={(checked) => setCaptchaVerified(checked === true)}
+          <textarea
+            id="catatan"
+            name="catatan"
+            required
+            rows={6}
+            maxLength={MAX_LEN}
+            value={value}
+            onChange={(e) => setValue(e.target.value)}
+            placeholder={kind === "bug" ? "Contoh: Di HP Android, peta tidak bisa di-zoom setelah membuka panel detail sensor." : "Contoh: Tambahkan filter AQI per kecamatan dan opsi bagikan tautan peta."}
+            className="min-h-[148px] w-full resize-y rounded-xl border border-outline-variant bg-white px-3.5 py-3 text-sm leading-6 text-on-surface placeholder:text-on-surface-variant/60 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20"
           />
-          <span className="text-[11px] font-bold uppercase tracking-wider text-on-surface-variant">
-            {captchaVerified ? "Token Verified" : "Verification Ready"}
-          </span>
+          <p className="text-xs leading-5 text-on-surface-variant">Jangan sertakan data pribadi.</p>
         </div>
 
-        <div className="flex flex-col gap-3 sm:flex-row sm:items-center sm:justify-between">
-          <div className="flex items-center gap-2 text-on-surface-variant">
-            <LockSimple size={16} />
-            <span className="text-[13px]">
-              End-to-end anonymous. No metadata stored.
-            </span>
+        <div className="flex flex-col gap-2 rounded-xl border border-outline-variant bg-surface-container-low px-3.5 py-3">
+          <div className="flex flex-wrap items-center justify-between gap-3">
+            <label htmlFor="captcha" className="text-sm font-semibold text-on-surface">
+              Captcha <span className="font-normal text-error" aria-hidden>*</span>
+              <span className="ml-2 font-mono text-sm font-bold text-secondary">
+                {captcha.a} + {captcha.b} = ?
+              </span>
+            </label>
+            <button
+              type="button"
+              onClick={refreshCaptcha}
+              className="rounded-full bg-white px-3 py-1.5 text-xs font-semibold text-on-surface ring-1 ring-outline-variant hover:bg-surface-container focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary"
+            >
+              Acak ulang
+            </button>
           </div>
-          <Button
+          <input
+            id="captcha"
+            name="captcha"
+            required
+            inputMode="numeric"
+            pattern="[0-9]*"
+            value={captchaInput}
+            onChange={(e) => {
+              setCaptchaInput(e.target.value.replace(/[^0-9]/g, ""));
+              if (captchaErr) setCaptchaErr("");
+            }}
+            placeholder="Jawaban angka"
+            className="h-10 w-full rounded-xl border border-outline-variant bg-white px-3.5 text-sm text-on-surface placeholder:text-on-surface-variant/60 focus:border-secondary focus:outline-none focus:ring-2 focus:ring-secondary/20 sm:max-w-[200px]"
+          />
+          {captchaErr ? <p className="text-xs font-medium text-error">{captchaErr}</p> : null}
+        </div>
+
+        <div className="flex justify-end">
+          <button
             type="submit"
-            variant="primary"
-            icon={<PaperPlaneRight weight="fill" />}
+            className="rounded-full bg-secondary px-6 py-2.5 text-sm font-semibold text-white hover:bg-[#005a52] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-secondary focus-visible:ring-offset-2 disabled:opacity-40"
+            disabled={!value.trim() || !captchaInput.trim()}
           >
-            Send Report
-          </Button>
+            Kirim masukan
+          </button>
         </div>
       </form>
     </div>
