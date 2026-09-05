@@ -1,6 +1,5 @@
 "use client";
 
-import Link from "next/link";
 import { Broadcast, ShieldCheck } from "@phosphor-icons/react";
 import Header from "../dashboard/Header";
 import FeedbackForm from "./FeedbackForm";
@@ -12,7 +11,7 @@ import FeedbackForm from "./FeedbackForm";
 export default function FeedbackPage() {
   return (
     <>
-      <Header onOpenModal={() => {}} />
+      <Header />
       <main className="flex flex-1 flex-col pt-16">
         <div className="mx-auto w-full max-w-7xl px-4 sm:px-6 lg:px-12 py-10">
           <div className="grid grid-cols-1 lg:grid-cols-12 gap-6 items-start">
@@ -24,7 +23,7 @@ export default function FeedbackPage() {
                   Kanal Warga Langsung
                 </span>
                 <h1 className="text-[26px] sm:text-[32px] font-bold leading-[1.25] tracking-tight text-on-surface">Kirim Masukan untuk Admin</h1>
-                <p className="text-sm leading-relaxed text-on-surface-variant">Bantu tingkatkan akurasi deteksi asap atau laporkan perbedaan data sensor di wilayahmu. Masukanmu langsung diteruskan ke tim Respivarda.</p>
+                <p className="text-sm leading-relaxed text-on-surface-variant">Bantu tingkatkan akurasi data AQI atau laporkan perbedaan bacaan di wilayahmu. Masukanmu langsung diteruskan ke tim Respivarda.</p>
               </div>
 
               <div className="flex flex-col gap-3 rounded-xl bg-surface-container-low p-6 shadow-sm">
@@ -48,14 +47,6 @@ export default function FeedbackPage() {
         </div>
       </main>
 
-      <footer className="w-full bg-surface-container-lowest shadow-[0_-1px_6px_rgba(0,0,0,0.02)]">
-        <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 sm:px-6 md:flex-row lg:px-12">
-          <p className="text-[13px] text-on-surface-variant">© 2026 Respivarda • Data: AirVisual (IQAir)</p>
-          <Link href="/" className="text-sm font-semibold text-secondary hover:underline">
-            Kembali ke Beranda
-          </Link>
-        </div>
-      </footer>
     </>
   );
 }
