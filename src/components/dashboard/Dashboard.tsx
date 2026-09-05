@@ -6,12 +6,13 @@ import { Dialog, Button } from "@cloudflare/kumo";
 import { CheckCircle, MapPin } from "@phosphor-icons/react";
 import Header from "./Header";
 import LocationBar from "./LocationBar";
-import SurroundingDistricts from "./SurroundingDistricts";
+import KaltimComparison from "./KaltimComparison";
 import StatusPanel from "./StatusPanel";
 import { DISTRICTS, SCENARIO_STYLES } from "@/src/lib/mock-data";
 import type { District, Scenario } from "@/src/lib/mock-data";
 import { useGeolocation } from "@/src/hooks/useGeolocation";
 import { isInsideBalikpapan } from "@/src/lib/geo/balikpapan";
+import { regionForPoint } from "@/src/lib/geo/kaltim";
 
 const SmokeMap = dynamic(() => import("./SmokeMap"), {
   ssr: false,
@@ -33,6 +34,8 @@ export default function Dashboard() {
   const [modalOpen, setModalOpen] = useState(false);
   const { coords, loading: locating, error: geoError, locate } = useGeolocation();
   const [liveAqi, setLiveAqi] = useState<{ usAqi: number; category: string; city: string; fetchedAt: string } | null>(null);
+  const [byCity, setByCity] = useState<Record<string, { city: string; usAqi: number; aqiCategory: string; mainPollutant?: string; freshness?: string }> | null>(null);
+  const [kaltimLoading, setKaltimLoading] = useState(true);
 
   const selectScenario = (s: Scenario) => {
     const target = DISTRICTS.find((d) => d.id === DISTRICT_BY_SCENARIO[s]);
@@ -42,13 +45,23 @@ export default function Dashboard() {
   const useMyLocation = () => locate();
 
   useEffect(() => {
+    setKaltimLoading(true);
     fetch("/api/air-quality?fetch=1")
       .then((r) => r.json())
       .then((j) => {
         const latest = j.data;
         if (latest?.airQualityRecord) setLiveAqi({ usAqi: latest.airQualityRecord.usAqi, category: latest.aqiCategory, city: latest.airQualityRecord.city, fetchedAt: latest.storedAt });
+        if (j.byCity) {
+          const mapped: Record<string, { city: string; usAqi: number; aqiCategory: string; mainPollutant?: string; freshness?: string }> = {};
+          for (const [k, v] of Object.entries(j.byCity as Record<string, { airQualityRecord: { city: string; usAqi: number }; aqiCategory: string; alertEvent?: { status: string } }>)) {
+            const h = v as unknown as { airQualityRecord: { city: string; usAqi: number; mainPollutant?: string; freshness?: string }; aqiCategory: string };
+            mapped[k] = { city: h.airQualityRecord.city, usAqi: h.airQualityRecord.usAqi, aqiCategory: h.aqiCategory, mainPollutant: (h.airQualityRecord as { mainPollutant?: string }).mainPollutant, freshness: (h.airQualityRecord as { freshness?: string }).freshness };
+          }
+          setByCity(mapped);
+        }
       })
-      .catch(() => {});
+      .catch(() => {})
+      .finally(() => setKaltimLoading(false));
   }, []);
 
   return (
@@ -67,7 +80,7 @@ export default function Dashboard() {
           <div className="mb-4 flex flex-wrap items-end justify-between gap-3">
             <div>
               <h2 className="text-xl font-extrabold tracking-tight">Regional Smoke Dispersion &amp; Proximity Map</h2>
-              <p className="text-sm text-on-surface-variant">Balikpapan — 1 fetch via AirVisual nearest_city (hemat limit) • Arsiran = domisili + coverage 15 km</p>
+              <p className="text-sm text-on-surface-variant">Kaltim live — Balikpapan • Samarinda • Penajam via nearest_city (hemat limit 3 fetch) • Arsiran = domisili Kaltim</p>
             </div>
             {liveAqi && (
               <div className="rounded-xl border border-surface-container bg-surface-container-lowest px-3 py-2 text-xs">
@@ -77,11 +90,19 @@ export default function Dashboard() {
             )}
           </div>
           {geoError && <p className="mb-3 rounded-xl border border-rose-200 bg-rose-50 px-3 py-2 text-xs text-rose-700">{geoError}</p>}
-          {coords && <p className="mb-3 rounded-xl border border-surface-container bg-white px-3 py-2 text-xs">Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)} — {isInsideBalikpapan(coords.lat, coords.lon) ? "Di dalam domisili Balikpapan (ter-cover stasiun)" : "Di luar domisili Balikpapan (data nearest_city tetap wilayah terdekat)"}</p>}
+          {coords && (
+            <p className="mb-3 rounded-xl border border-surface-container bg-white px-3 py-2 text-xs">
+              Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)} —{" "}
+              {(() => {
+                const r = regionForPoint(coords.lat, coords.lon);
+                return r ? `Di dalam domisili ${r} (ter-cover stasiun Kaltim)` : "Di luar domisili Kaltim (data tetap nearest_city terdekat)";
+              })()}
+            </p>
+          )}
           <SmokeMap district={district} userCoords={coords} />
         </section>
 
-        <SurroundingDistricts activeId={district.id} onSelect={setDistrict} />
+        <KaltimComparison byCity={byCity} loading={kaltimLoading} />
         <StatusPanel district={district} />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">

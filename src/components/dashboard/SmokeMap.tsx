@@ -6,7 +6,7 @@ import "leaflet/dist/leaflet.css";
 import { Crosshair, Wind } from "@phosphor-icons/react";
 import type { District, Scenario } from "@/src/lib/mock-data";
 import { SCENARIO_STYLES } from "@/src/lib/mock-data";
-import { BALIKPAPAN_POLYGON, BALIKPAPAN_STATION, STATION_COVERAGE_M, isInsideBalikpapan } from "@/src/lib/geo/balikpapan";
+import { KALTIM_CENTERS, KALTIM_POLYGONS, STATION_COVERAGE_M, regionForPoint } from "@/src/lib/geo/kaltim";
 import type { GeoState } from "@/src/hooks/useGeolocation";
 
 const pin = (color: string) =>
@@ -40,16 +40,22 @@ const RADIUS: Record<Scenario, number> = {
 export default function SmokeMap({ district, userCoords }: { district: District; userCoords: GeoState }) {
   const style = SCENARIO_STYLES[district.scenario];
   const center: [number, number] = [district.lat, district.lng];
-  const inside = userCoords ? isInsideBalikpapan(userCoords.lat, userCoords.lon) : null;
+  const region = userCoords ? regionForPoint(userCoords.lat, userCoords.lon) : null;
 
   return (
     <div className="relative h-[420px] w-full overflow-hidden rounded-2xl border border-surface-container shadow-sm">
-      <MapContainer key={district.id} center={center} zoom={12} scrollWheelZoom={false} className="h-full w-full">
+      <MapContainer key={district.id} center={[-1.05, 116.9]} zoom={8} scrollWheelZoom={false} className="h-full w-full">
         <TileLayer attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a>' url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png" />
-        <Polygon positions={BALIKPAPAN_POLYGON} pathOptions={{ color: "#1e40af", fillColor: "#1e40af", fillOpacity: 0.06, weight: 2, dashArray: "8 6" }} />
-        <Circle center={BALIKPAPAN_STATION} radius={STATION_COVERAGE_M} pathOptions={{ color: "#0f172a", fillColor: "#0f172a", fillOpacity: 0.04, weight: 1, dashArray: "4 6" }} />
+        {Object.entries(KALTIM_POLYGONS).map(([name, poly]) => (
+          <Polygon key={name} positions={poly} pathOptions={{ color: "#1e40af", fillColor: "#1e40af", fillOpacity: 0.06, weight: 2, dashArray: "8 6" }} />
+        ))}
+        {Object.values(KALTIM_CENTERS).map(([lat, lon]) => (
+          <Circle key={`${lat}-${lon}`} center={[lat, lon]} radius={STATION_COVERAGE_M} pathOptions={{ color: "#0f172a", fillColor: "#0f172a", fillOpacity: 0.04, weight: 1, dashArray: "4 6" }} />
+        ))}
+        {Object.entries(KALTIM_CENTERS).map(([name, pos]) => (
+          <Marker key={name} position={pos} icon={stationPin} />
+        ))}
         <Circle center={center} radius={RADIUS[district.scenario]} pathOptions={{ color: style.mapColor, fillColor: style.mapColor, fillOpacity: 0.18, weight: 2, dashArray: "6 6" }} />
-        <Marker position={BALIKPAPAN_STATION} icon={stationPin} />
         <Marker position={center} icon={pin(style.mapColor)} />
         {userCoords && <Marker position={[userCoords.lat, userCoords.lon]} icon={userPin} />}
       </MapContainer>
@@ -63,14 +69,14 @@ export default function SmokeMap({ district, userCoords }: { district: District;
       {userCoords && (
         <div className="absolute left-4 top-14 z-[1000] flex items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
           <Crosshair size={14} className="text-primary" />
-          {inside ? "Di dalam domisili Balikpapan (coverage stasiun)" : "Di luar domisili Balikpapan"}
+          {region ? `Di dalam domisili ${region} (coverage Kaltim)` : "Di luar domisili Kaltim"}
         </div>
       )}
       <div className="absolute bottom-4 left-4 z-[1000] flex items-center gap-2 rounded-xl bg-white/90 px-3 py-2 text-xs font-semibold shadow backdrop-blur">
         <Wind size={16} className="text-secondary" />
         Wind: 14 km/h SW • Humidity: 58%
       </div>
-      <div className="absolute bottom-4 right-4 z-[1000] rounded-xl bg-primary/90 px-3 py-2 text-[11px] font-medium text-white shadow">1 fetch: Balikpapan via nearest_city • Hotspot: AirVisual tidak sediakan — lihat catatan di panel</div>
+      <div className="absolute bottom-4 right-4 z-[1000] rounded-xl bg-primary/90 px-3 py-2 text-[11px] font-medium text-white shadow">Kaltim 3 kota via nearest_city • Arsiran = domisili per kota</div>
     </div>
   );
 }
