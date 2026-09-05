@@ -34,12 +34,6 @@ export default function Header() {
           >
             Masukan
           </Link>
-          <Link
-            href="/admin/login"
-            className="rounded-full px-3 py-1.5 text-on-surface-variant transition-colors hover:bg-surface-container-low hover:text-on-surface"
-          >
-            Admin
-          </Link>
         </nav>
 
         <button
@@ -68,13 +62,6 @@ export default function Header() {
               className={`rounded-xl px-3 py-2.5 ${isFeedback ? "bg-secondary-container text-on-secondary-container" : "text-on-surface hover:bg-surface-container-low"}`}
             >
               Masukan
-            </Link>
-            <Link
-              href="/admin/login"
-              onClick={() => setOpen(false)}
-              className="rounded-xl px-3 py-2.5 text-on-surface hover:bg-surface-container-low"
-            >
-              Admin
             </Link>
           </nav>
         </div>

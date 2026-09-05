@@ -18,7 +18,6 @@ import {
   validateAdminLogin,
   type AdminLoginErrors,
 } from "./admin-login-validation";
-import OperationsPreview from "./OperationsPreview";
 
 export default function AdminLogin() {
   const [email, setEmail] = useState("");
@@ -96,7 +95,7 @@ export default function AdminLogin() {
           </div>
         </div>
 
-        <div className="grid items-center gap-8 lg:grid-cols-2 lg:gap-12">
+        <div className="mx-auto max-w-xl">
           <section className="rounded-3xl border border-surface-container bg-surface-container-lowest p-6 shadow-sm sm:p-8">
             <div className="flex items-center gap-2 text-sm font-bold text-secondary">
               <LockKey size={18} weight="fill" />
@@ -226,8 +225,6 @@ export default function AdminLogin() {
               </Link>
             </div>
           </section>
-
-          <OperationsPreview />
         </div>
       </div>
     </main>
