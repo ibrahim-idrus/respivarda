@@ -63,7 +63,7 @@ export default function FeedbackPage() {
       <footer className="w-full bg-surface-container-lowest shadow-[0_-1px_6px_rgba(0,0,0,0.02)]">
         <div className="mx-auto flex w-full max-w-7xl flex-col items-center justify-between gap-4 px-4 py-6 sm:px-6 md:flex-row lg:px-12">
           <p className="text-[13px] text-on-surface-variant">
-            © 2025 SmokeWatch Public Environmental Network.
+            © 2025 Respivarda Public Environmental Network.
           </p>
           <Link
             href="/"

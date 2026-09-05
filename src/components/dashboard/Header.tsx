@@ -13,7 +13,7 @@ export default function Header({ onOpenModal }: { onOpenModal: () => void }) {
             <CloudSun size={20} weight="fill" />
           </div>
           <div className="leading-tight">
-            <p className="text-base font-extrabold tracking-tight">SmokeWatch</p>
+            <p className="text-base font-extrabold tracking-tight">Respivarda</p>
             <p className="text-[11px] font-medium text-on-surface-variant">
               Public Environmental Service
             </p>

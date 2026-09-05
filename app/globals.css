@@ -3,7 +3,7 @@
 @import "tailwindcss";
 
 @theme {
-  /* SmokeWatch design tokens (from Stitch code.html) */
+  /* Respivarda design tokens (from Stitch code.html) */
   --color-primary: #0f172a;
   --color-primary-container: #131b2e;
   --color-on-primary: #ffffff;

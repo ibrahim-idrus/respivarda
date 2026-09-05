@@ -8,6 +8,7 @@ import Header from "./Header";
 import LocationBar from "./LocationBar";
 import SurroundingDistricts from "./SurroundingDistricts";
 import StatusPanel from "./StatusPanel";
+import TelegramConnect from "./TelegramConnect";
 import { DISTRICTS, SCENARIO_STYLES } from "@/src/lib/mock-data";
 import type { District, Scenario } from "@/src/lib/mock-data";
 
@@ -71,13 +72,14 @@ export default function Dashboard() {
 
         <SurroundingDistricts activeId={district.id} onSelect={setDistrict} />
         <StatusPanel district={district} />
+        <TelegramConnect />
 
         <section className="mx-auto w-full max-w-7xl px-4 sm:px-6">
           <div className="rounded-2xl border border-surface-container bg-surface-container-low p-6 text-sm text-on-surface-variant">
             <p className="mb-1 font-extrabold text-on-surface">
-              About SmokeWatch Civic Service
+              About Respivarda Civic Service
             </p>
-            SmokeWatch operates as a frictionless, anonymous environmental
+            Respivarda operates as a frictionless, anonymous environmental
             hazard monitoring system. It fuses satellite infrared imagery
             (Copernicus Sentinel-5P, MODIS/VIIRS) with distributed ground
             optical sensors to deliver neighborhood-level smoke dispersion
@@ -87,7 +89,7 @@ export default function Dashboard() {
       </main>
 
       <footer className="border-t border-surface-container bg-surface-container-lowest py-6 text-center text-xs text-on-surface-variant">
-        © 2025 SmokeWatch Public Environmental Telemetry. Distributed under Open
+        © 2025 Respivarda Public Environmental Telemetry. Distributed under Open
         Civic Data License. • Copernicus Attribution
       </footer>
 

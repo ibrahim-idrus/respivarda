@@ -2,6 +2,7 @@
 
 import { useState } from "react";
 import Link from "next/link";
+import { useMutation } from "@tanstack/react-query";
 import { Button, Checkbox, Textarea } from "@cloudflare/kumo";
 import {
   CheckCircle,
@@ -18,6 +19,23 @@ export default function FeedbackForm() {
   const [captchaError, setCaptchaError] = useState(false);
   const [submitted, setSubmitted] = useState(false);
 
+  // ponytail: public anonymous form only collects a free-text description.
+  // ceiling: category hard-coded to app_suggestion (least-wrong bucket) and no
+  // location/device capture. upgrade: add category picker + optional location
+  // fields when the design calls for them.
+  const submit = useMutation({
+    mutationFn: async (description: string) => {
+      const res = await fetch("/api/feedback", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ category: "app_suggestion", description }),
+      });
+      if (!res.ok) throw new Error((await res.json()).error ?? "Gagal mengirim");
+      return res.json() as Promise<{ id: string; reportRef: string }>;
+    },
+    onSuccess: () => setSubmitted(true),
+  });
+
   const onSubmit = (e: React.FormEvent) => {
     e.preventDefault();
     if (!description.trim()) return;
@@ -28,9 +46,7 @@ export default function FeedbackForm() {
       setTimeout(() => setCaptchaError(false), 1500);
       return;
     }
-    // ponytail: submit is local state — ceiling: refresh loses it, nothing
-    // persisted. upgrade: POST to /api/feedback + drizzle.
-    setSubmitted(true);
+    submit.mutate(description.trim());
   };
 
   const onReset = () => {
@@ -129,13 +145,21 @@ export default function FeedbackForm() {
               End-to-end anonymous. No metadata stored.
             </span>
           </div>
-          <Button
-            type="submit"
-            variant="primary"
-            icon={<PaperPlaneRight weight="fill" />}
-          >
-            Send Report
-          </Button>
+          <div className="flex flex-col items-end gap-1">
+            <Button
+              type="submit"
+              variant="primary"
+              loading={submit.isPending}
+              icon={<PaperPlaneRight weight="fill" />}
+            >
+              Send Report
+            </Button>
+            {submit.isError && (
+              <span className="text-[12px] text-error">
+                Gagal mengirim laporan. Coba lagi.
+              </span>
+            )}
+          </div>
         </div>
       </form>
     </div>
