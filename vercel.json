@@ -3,11 +3,7 @@
   "crons": [
     {
       "path": "/api/cron/fetch-air",
-      "schedule": "0 */4 * * *"
-    },
-    {
-      "path": "/api/cron/fan-out",
-      "schedule": "0 */4 * * *"
+      "schedule": "0 0 * * *"
     }
   ]
 }
