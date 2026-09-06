@@ -1,7 +1,8 @@
 
 function getToken(): string {
-  const token = process.env.Telegram_URL ?? process.env.TELEGRAM_URL;
-  if (!token) throw new Error("Telegram bot token env var is not set");
+  const token =
+    process.env.TELEGRAM_BOT_TOKEN ?? process.env.Telegram_URL ?? process.env.TELEGRAM_URL;
+  if (!token) throw new Error("TELEGRAM_BOT_TOKEN (alias TELEGRAM_URL) is not set");
   return token;
 }
 

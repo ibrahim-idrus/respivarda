@@ -1,4 +1,5 @@
-import { desc, eq } from "drizzle-orm";
+import { after } from "next/server";
+import { eq } from "drizzle-orm";
 import { db } from "@/src/db";
 import { conversationStates, userProfiles, users } from "@/src/db/schema";
 import { isValidWebhookSecret, sendTelegramMessage, withTyping, escapeHtml } from "@/lib/telegram";
@@ -9,6 +10,7 @@ import { generateAlertInsightRecommendation } from "@/lib/ai/recommendation";
 
 export const runtime = "nodejs";
 export const dynamic = "force-dynamic";
+export const maxDuration = 60;
 
 const INTRO = [
   "👋 <b>Halo, saya Respivarda</b>",
@@ -89,7 +91,7 @@ type TelegramMessage = {
   from?: TelegramFrom;
   location?: TelegramLocation;
 };
-type TelegramUpdate = { message?: TelegramMessage };
+type TelegramUpdate = { message?: TelegramMessage; edited_message?: TelegramMessage };
 
 function fullName(from?: TelegramFrom): string {
   return [from?.first_name, from?.last_name].filter(Boolean).join(" ").trim();
@@ -508,10 +510,10 @@ async function handleLocation(chatId: number, loc: TelegramLocation) {
 }
 
 export async function processUpdate(update: TelegramUpdate): Promise<void> {
-  const message = update?.message;
+  const message = update?.message ?? update?.edited_message;
   const chat = message?.chat;
   if (!message || typeof chat?.id !== "number") return;
-  if (chat.type !== "private") return;
+  if (chat.type !== "private" && typeof chat.type === "string") return;
 
   const text = typeof message.text === "string" ? message.text.trim() : "";
   if (message.location) {
@@ -519,6 +521,10 @@ export async function processUpdate(update: TelegramUpdate): Promise<void> {
   } else if (text) {
     await handleText(chat.id, text, message.from);
   }
+}
+
+export function GET() {
+  return Response.json({ ok: true, service: "telegram-webhook" });
 }
 
 export async function POST(req: Request) {
@@ -531,9 +537,28 @@ export async function POST(req: Request) {
   } catch {
     return Response.json({ ok: true });
   }
+  const chatType = update?.message?.chat?.type ?? update?.edited_message?.chat?.type;
+  if (typeof chatType === "string" && chatType !== "private") {
+    return Response.json({ ok: true });
+  }
+  const hasWorkablePayload =
+    Boolean(update?.message?.location ?? update?.edited_message?.location) ||
+    typeof (update?.message?.text ?? update?.edited_message?.text) === "string";
+  if (!hasWorkablePayload) {
+    return Response.json({ ok: true });
+  }
+  if (process.env.VERCEL) {
+    after(
+      processUpdate(update).catch((err) => {
+        console.error("[telegram] webhook update error:", err instanceof Error ? err.message : err);
+      })
+    );
+    return Response.json({ ok: true });
+  }
   try {
     await processUpdate(update);
-  } catch {
+  } catch (err) {
+    console.error("[telegram] webhook update error:", err instanceof Error ? err.message : err);
     return Response.json({ ok: false }, { status: 500 });
   }
   return Response.json({ ok: true });

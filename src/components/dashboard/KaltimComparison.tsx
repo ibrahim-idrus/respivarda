@@ -68,7 +68,7 @@ export default function KaltimComparison({
         </div>
       ) : cities.length === 0 ? (
         <div className="rounded-2xl border border-surface-container bg-surface-container-low p-6 text-sm text-on-surface-variant">
-          Belum ada data live. Isi AIR_VISUAL_API_KEY lalu buka <code className="rounded bg-white px-1">/api/air-quality?fetch=1</code> atau tunggu cron.
+          Belum ada data live. Data diperbarui otomatis tiap jam, silakan muat ulang beberapa saat lagi.
         </div>
       ) : (
         <div className="flex gap-4 overflow-x-auto pb-3 [direction:rtl]">

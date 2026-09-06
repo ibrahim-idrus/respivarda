@@ -5,7 +5,7 @@ import { evaluateRuleEngine } from "./rule-engine";
 import { resolveAlertInsight } from "./alert-insight";
 import { fetchNearestCity } from "./index";
 import { MONITORED_LOCATIONS } from "./monitored-locations";
-import type { NormalizedAirQuality } from "./types";
+import type { NormalizedAirQuality, StaleResult, SuccessResult } from "./types";
 import type { RuleEngineResult } from "./types";
 
 export const CACHE_TTL_MINUTES = 60;
@@ -150,8 +150,11 @@ export async function readAllCached(ttlMinutes = CACHE_TTL_MINUTES): Promise<Cac
   const allRows = await db.select().from(locations);
   const out: CachedAqi[] = [];
   for (const loc of allRows) {
-    const cached = await readCache(loc.id, ttlMinutes);
-    if (cached) out.push(cached);
+    const cached = await readCache(loc.id, Number.MAX_SAFE_INTEGER);
+    if (!cached) continue;
+    const ageMinutes = Math.floor((Date.now() - cached.fetchedAt.getTime()) / 60_000);
+    if (ageMinutes > ttlMinutes) continue;
+    out.push({ ...cached, dataAgeMinutes: Math.floor((Date.now() - cached.measuredAt.getTime()) / 60_000) });
   }
   return out;
 }
@@ -223,20 +226,13 @@ async function writeRecord(
   });
 }
 
-export async function refreshLocation(location: LocationRow, now = new Date()): Promise<CachedAqi | null> {
-  let r: Awaited<ReturnType<typeof fetchNearestCity>>;
-  try {
-    r = await fetchNearestCity({ lat: location.lat, lon: location.lon }, { now });
-  } catch (err) {
-    console.error(`[cron] fetch ${location.city} threw:`, err instanceof Error ? err.message : "unknown");
-    return readCache(location.id);
-  }
-  if (r.kind === "unavailable" || r.kind === "incomplete") {
-    console.error(`[cron] fetch ${location.city} ${r.kind}:`, r.kind === "unavailable" ? r.error : (r.error ?? r.missingFields.join(", ")));
-    return readCache(location.id);
-  }
+async function processFetchedData(
+  locationId: string,
+  r: SuccessResult | StaleResult,
+  now: Date
+): Promise<CachedAqi | null> {
   const current = r.data;
-  const cached = await readCache(location.id, Number.MAX_SAFE_INTEGER);
+  const cached = await readCache(locationId, Number.MAX_SAFE_INTEGER);
   const previous: NormalizedAirQuality | null = cached
     ? {
         city: current.city,
@@ -257,8 +253,23 @@ export async function refreshLocation(location: LocationRow, now = new Date()): 
   const insight = isStale
     ? { kind: "none" as const, title: null, body: null, recommendation: null }
     : resolveAlertInsight(current, rule);
-  await writeRecord(location.id, current, isStale ? { ...rule, alertDecision: "suppress", reason: "Stale: do not trigger new alert" } : rule, insight, r.raw);
-  return readCache(location.id, Number.MAX_SAFE_INTEGER);
+  await writeRecord(locationId, current, isStale ? { ...rule, alertDecision: "suppress", reason: "Stale: do not trigger new alert" } : rule, insight, r.raw);
+  return readCache(locationId, Number.MAX_SAFE_INTEGER);
+}
+
+export async function refreshLocation(location: LocationRow, now = new Date()): Promise<CachedAqi | null> {
+  let r: Awaited<ReturnType<typeof fetchNearestCity>>;
+  try {
+    r = await fetchNearestCity({ lat: location.lat, lon: location.lon }, { now });
+  } catch (err) {
+    console.error(`[cron] fetch ${location.city} threw:`, err instanceof Error ? err.message : "unknown");
+    return readCache(location.id);
+  }
+  if (r.kind === "unavailable" || r.kind === "incomplete") {
+    console.error(`[cron] fetch ${location.city} ${r.kind}:`, r.kind === "unavailable" ? r.error : (r.error ?? r.missingFields.join(", ")));
+    return readCache(location.id);
+  }
+  return processFetchedData(location.id, r, now);
 }
 
 export async function refreshAllMonitored(now = new Date()): Promise<{ locationId: string; ok: boolean; cached: CachedAqi | null; error?: string }[]> {
@@ -284,33 +295,18 @@ export async function refreshAllMonitored(now = new Date()): Promise<{ locationI
 }
 
 async function fetchLiveForCoords(lat: number, lon: number, now = new Date()): Promise<{ location: LocationRow; current: NormalizedAirQuality; rule: RuleEngineResult; raw: unknown } | null> {
-  const r = await fetchNearestCity({ lat, lon }, { now });
+  let r: Awaited<ReturnType<typeof fetchNearestCity>>;
+  try {
+    r = await fetchNearestCity({ lat, lon }, { now });
+  } catch {
+    return null;
+  }
   if (r.kind === "unavailable" || r.kind === "incomplete") return null;
   const current = r.data;
   const location = await upsertCityLocation(current);
   if (!location) return null;
-  const cached = await readCache(location.id, Number.MAX_SAFE_INTEGER);
-  const previous: NormalizedAirQuality | null = cached
-    ? {
-        city: current.city,
-        state: current.state,
-        country: current.country,
-        latitude: current.latitude,
-        longitude: current.longitude,
-        usAqi: cached.usAqi,
-        aqiCategory: cached.aqiCategory,
-        mainPollutant: cached.mainPollutant as NormalizedAirQuality["mainPollutant"],
-        measuredAt: cached.measuredAt,
-        dataAgeMinutes: cached.dataAgeMinutes,
-        freshness: "FRESH",
-      }
-    : null;
-  const rule = evaluateRuleEngine({ current, previous, now });
-  const isStale = r.kind === "stale";
-  const insight = isStale
-    ? { kind: "none" as const, title: null, body: null, recommendation: null }
-    : resolveAlertInsight(current, rule);
-  await writeRecord(location.id, current, isStale ? { ...rule, alertDecision: "suppress", reason: "Stale: do not trigger new alert" } : rule, insight, r.raw);
+  await processFetchedData(location.id, r, now);
+  const rule = evaluateRuleEngine({ current, previous: null, now });
   return { location, current, rule, raw: r.raw };
 }
 

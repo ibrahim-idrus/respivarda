@@ -7,7 +7,6 @@ import Header from "./Header";
 import KaltimComparison from "./KaltimComparison";
 import TelegramConnect from "./TelegramConnect";
 import { useGeolocation } from "@/src/hooks/useGeolocation";
-import { regionForPoint } from "@/src/lib/geo/kaltim";
 import { aqiCategoryLabel } from "@/src/lib/aqi-category";
 
 const SmokeMap = dynamic(() => import("./SmokeMap"), {
@@ -130,10 +129,6 @@ export default function Dashboard() {
                 {coords && (
                   <p className="mt-2 text-xs text-on-surface-variant">
                     Lokasi kamu: {coords.lat.toFixed(5)}, {coords.lon.toFixed(5)}
-                    {(() => {
-                      const r = regionForPoint(coords.lat, coords.lon);
-                      return r ? ` • Cakupan ${r}` : "";
-                    })()}
                   </p>
                 )}
                 {geoError && <p className="mt-2 text-xs font-semibold text-rose-700">{geoError}</p>}

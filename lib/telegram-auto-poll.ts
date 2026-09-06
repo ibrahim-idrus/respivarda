@@ -3,10 +3,12 @@ declare global {
 }
 
 if (!globalThis.__telegramPollStarted) {
-  const token = process.env.Telegram_URL ?? process.env.TELEGRAM_URL;
+  const token =
+    process.env.TELEGRAM_BOT_TOKEN ?? process.env.Telegram_URL ?? process.env.TELEGRAM_URL;
   const pollAuto = process.env.TELEGRAM_POLL_AUTO;
-  const isProd = process.env.NODE_ENV === 'production';
-  const shouldPoll = !!token && pollAuto !== '0' && (!isProd || pollAuto === '1');
+  const isDev = process.env.NODE_ENV !== "production";
+  const onVercel = Boolean(process.env.VERCEL);
+  const shouldPoll = !!token && !onVercel && (pollAuto === "1" || (isDev && pollAuto !== "0"));
 
   if (shouldPoll) {
     globalThis.__telegramPollStarted = true;

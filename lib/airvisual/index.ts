@@ -76,36 +76,13 @@ export async function fetchNearestCity(
   }
 }
 
-export async function getNearestCity(params: GetNearestCityParams, opts?: { now?: Date }): Promise<NearestCityData> {
-  const result = await fetchNearestCity(params, opts);
-  if (result.kind === 'unavailable') throw new Error(result.error);
-  if (result.kind === 'incomplete') {
-    const detail = result.error ?? `Missing: ${result.missingFields.join(', ')}`;
-    throw new Error(`Incomplete data. ${detail}`);
-  }
-  if (result.kind === 'stale') throw new Error(`Stale data: ${result.data.dataAgeMinutes} minutes old`);
-  return result.raw as unknown as NearestCityData;
-}
-
-export async function getNearestCityRaw(params: GetNearestCityParams) {
-  assertCoordinates(params.lat, params.lon);
-  const apiKey = resolveApiKey(params.key);
-  return airVisualApi.get<NearestCityResponse>('/nearest_city', {
-    params: { lat: params.lat, lon: params.lon, key: apiKey }
-  });
-}
-
 export { processAirQualityData } from './pipeline';
 export { evaluateRuleEngine } from './rule-engine';
 export { isAlertRequired, isInsightRequired, resolveAlertInsight } from './alert-insight';
-export { buildHistoryPayload, storeHistory, getHistory, clearHistory } from './history';
 export { MONITORED_LOCATIONS } from './monitored-locations';
-export { fetchAndProcessAll } from './fetcher';
 export * from './types';
 export * from './pipeline';
 export * from './rule-engine';
 export * from './alert-insight';
-export * from './history';
 export * from './monitored-locations';
-export * from './fetcher';
 export default airVisualApi;

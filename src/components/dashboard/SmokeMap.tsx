@@ -7,7 +7,6 @@ import type { FeatureCollection } from "geojson";
 import "leaflet/dist/leaflet.css";
 import { Crosshair } from "@phosphor-icons/react";
 import { aqiCategoryLabel } from "@/src/lib/aqi-category";
-import { regionForPoint } from "@/src/lib/geo/kaltim";
 import type { GeoState } from "@/src/hooks/useGeolocation";
 
 type SmokeMapProps = {
@@ -69,7 +68,21 @@ function FlyTo({ center }: { center: [number, number] | null }) {
 
 export default function SmokeMap({ selectedKey, byCity, userCoords, myLocation, onClearSelection }: SmokeMapProps) {
   const [boundaries, setBoundaries] = useState<FeatureCollection | null>(null);
-  const region = userCoords ? regionForPoint(userCoords.lat, userCoords.lon) : null;
+  const nearestCity = useMemo(() => {
+    if (!userCoords) return null;
+    let best: { city: string; distKm: number } | null = null;
+    for (const v of Object.values(byCity ?? {})) {
+      if (v.lat == null || v.lon == null) continue;
+      const dLat = ((v.lat - userCoords.lat) * Math.PI) / 180;
+      const dLon = ((v.lon - userCoords.lon) * Math.PI) / 180;
+      const a =
+        Math.sin(dLat / 2) ** 2 +
+        Math.cos((userCoords.lat * Math.PI) / 180) * Math.cos((v.lat * Math.PI) / 180) * Math.sin(dLon / 2) ** 2;
+      const distKm = 2 * 6371 * Math.asin(Math.sqrt(a));
+      if (!best || distKm < best.distKm) best = { city: v.city, distKm };
+    }
+    return best;
+  }, [userCoords, byCity]);
 
   useEffect(() => {
     fetch("/geo/kalimantan-coverage.geojson")
@@ -194,10 +207,10 @@ export default function SmokeMap({ selectedKey, byCity, userCoords, myLocation, 
           Tampilkan semua
         </button>
       )}
-      {userCoords && (
+      {userCoords && nearestCity && (
         <div className="pointer-events-none absolute bottom-3 left-[14.5rem] z-[1000] hidden items-center gap-1.5 rounded-xl bg-white/95 px-3 py-2 text-xs font-semibold shadow backdrop-blur sm:flex">
           <Crosshair size={14} className="shrink-0 text-primary" />
-          <span className="leading-tight">{region ? `Cakupan ${region}` : "Di luar cakupan sorotan"}</span>
+          <span className="leading-tight">Terdekat: {nearestCity.city} ({nearestCity.distKm < 1 ? `${Math.round(nearestCity.distKm * 1000)} m` : `${nearestCity.distKm.toFixed(0)} km`})</span>
         </div>
       )}
     </div>
