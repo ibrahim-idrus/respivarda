@@ -146,7 +146,12 @@ export async function readCache(locationId: string, ttlMinutes = CACHE_TTL_MINUT
   };
 }
 
-export async function readAllCached(ttlMinutes = CACHE_TTL_MINUTES): Promise<CachedAqi[]> {
+export async function getLocationIdByCity(city: string): Promise<string | null> {
+  const allRows = await db.select().from(locations);
+  const normalized = normalizeCityName(city);
+  const match = allRows.find((r) => normalizeCityName(r.city) === normalized);
+  return match?.id ?? null;
+}
   const allRows = await db.select().from(locations);
   const out: CachedAqi[] = [];
   for (const loc of allRows) {

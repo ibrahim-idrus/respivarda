@@ -1,6 +1,5 @@
 import crypto from 'node:crypto';
 import { refreshAllMonitored } from '@/lib/airvisual/cache';
-import { fanoutLocationAlert } from '@/lib/airvisual/fanout';
 
 export const runtime = 'nodejs';
 export const dynamic = 'force-dynamic';
@@ -20,16 +19,7 @@ export async function GET(req: Request) {
   if (!isAuthorized(req)) return new Response('Unauthorized', { status: 401 });
   const now = new Date();
   const results = await refreshAllMonitored(now);
-  const fanout = [];
-  for (const r of results) {
-    if (!r.ok || !r.cached) continue;
-    try {
-      fanout.push(await fanoutLocationAlert(r.locationId, r.cached, now));
-    } catch (err) {
-      fanout.push({ locationId: r.locationId, city: r.cached.city, triggered: false, sent: 0, skipped: 0, errors: [err instanceof Error ? err.message : 'unknown'] });
-    }
-  }
-  return Response.json({ fetchedAt: now.toISOString(), results, fanout });
+  return Response.json({ fetchedAt: now.toISOString(), results });
 }
 
 export async function POST(req: Request) {
