@@ -59,6 +59,7 @@ export default function UserRegistry() {
   const [statusFilter, setStatusFilter] = useState("all");
   const [selectedUser, setSelectedUser] = useState<UserRow | null>(null);
   const [sendingChatId, setSendingChatId] = useState<string | null>(null);
+  const [settingUpTelegram, setSettingUpTelegram] = useState(false);
   const [copiedId, setCopiedId] = useState<string | null>(null);
   const [alertFeedback, setAlertFeedback] = useState<{
     type: "success" | "error";
@@ -148,6 +149,39 @@ export default function UserRegistry() {
     }
   };
 
+  const handleSetupTelegram = async () => {
+    setSettingUpTelegram(true);
+    setAlertFeedback(null);
+    try {
+      const res = await fetch("/api/telegram/setup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: "{}",
+      });
+      const data = await res.json().catch(() => null);
+      const webhookUrl = data?.webhook?.url;
+
+      if (!res.ok || !data?.ok) {
+        setAlertFeedback({
+          type: "error",
+          text: data?.error || "Gagal memasang webhook Telegram.",
+        });
+      } else {
+        setAlertFeedback({
+          type: "success",
+          text: `Webhook Telegram aktif${webhookUrl ? `: ${webhookUrl}` : "."}`,
+        });
+      }
+    } catch {
+      setAlertFeedback({
+        type: "error",
+        text: "Koneksi gagal saat memasang webhook Telegram.",
+      });
+    } finally {
+      setSettingUpTelegram(false);
+    }
+  };
+
   const copyToClipboard = (text: string) => {
     navigator.clipboard.writeText(text);
     setCopiedId(text);
@@ -179,15 +213,15 @@ export default function UserRegistry() {
         </div>
 
         <div className="flex items-center gap-2">
-          <a
-            href="https://t.me"
-            target="_blank"
-            rel="noreferrer"
-            className="inline-flex items-center gap-2 rounded-xl border border-surface-container bg-surface px-4 py-2 text-xs font-bold text-on-surface transition hover:bg-surface-container"
+          <Button
+            variant="secondary"
+            size="sm"
+            loading={settingUpTelegram}
+            icon={<Broadcast size={16} />}
+            onClick={handleSetupTelegram}
           >
-            <Broadcast size={16} className="text-secondary" />
-            Integrasi Bot Telegram
-          </a>
+            Aktifkan Webhook Telegram
+          </Button>
         </div>
       </div>
 
