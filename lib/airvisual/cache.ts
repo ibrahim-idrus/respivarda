@@ -146,12 +146,18 @@ export async function readCache(locationId: string, ttlMinutes = CACHE_TTL_MINUT
   };
 }
 
+function normalizeCityName(city: string): string {
+  return city.trim().toLowerCase();
+}
+
 export async function getLocationIdByCity(city: string): Promise<string | null> {
   const allRows = await db.select().from(locations);
   const normalized = normalizeCityName(city);
   const match = allRows.find((r) => normalizeCityName(r.city) === normalized);
   return match?.id ?? null;
 }
+
+export async function readAllCached(ttlMinutes = CACHE_TTL_MINUTES): Promise<CachedAqi[]> {
   const allRows = await db.select().from(locations);
   const out: CachedAqi[] = [];
   for (const loc of allRows) {
