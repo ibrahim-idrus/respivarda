@@ -90,7 +90,7 @@ export default function AdminLogin() {
             <CloudSun size={23} weight="fill" />
           </div>
           <div className="leading-tight">
-            <p className="text-lg font-extrabold tracking-tight text-on-surface">SmokeWatch</p>
+            <p className="text-lg font-extrabold tracking-tight text-on-surface">Respivarda</p>
             <p className="text-xs font-medium text-on-surface-variant">Operations workspace</p>
           </div>
         </div>
@@ -145,7 +145,7 @@ export default function AdminLogin() {
                   aria-invalid={errors.email ? true : undefined}
                   aria-describedby={errors.email ? "admin-email-error" : undefined}
                   className="h-12 w-full rounded-xl border border-surface-container bg-surface-container-lowest px-4 text-on-surface outline-none transition focus:border-secondary focus:ring-4 focus:ring-secondary/30 disabled:opacity-50"
-                  placeholder="operator@smokewatch.id"
+                  placeholder="operator@respivarda.id"
                 />
                 {errors.email && (
                   <p id="admin-email-error" role="alert" className="mt-2 text-sm font-medium text-error">

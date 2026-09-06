@@ -10,7 +10,7 @@ test("validates admin credentials correctly", () => {
   
   assert.equal(validateAdminCredentials("admin@respivarda.id", "admin123"), true);
   assert.equal(validateAdminCredentials("ADMIN@RESPIVARDA.ID", "admin123"), true);
-  assert.equal(validateAdminCredentials("operator@smokewatch.id", "admin123"), true);
+  assert.equal(validateAdminCredentials("operator@respivarda.id", "admin123"), true);
 
   
   assert.equal(validateAdminCredentials("admin@respivarda.id", "wrongpass"), false);

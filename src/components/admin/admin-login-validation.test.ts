@@ -19,7 +19,7 @@ test("rejects an invalid work email", () => {
 test("accepts non-empty email and password values", () => {
   assert.deepEqual(
     validateAdminLogin({
-      email: "operator@smokewatch.id",
+      email: "operator@respivarda.id",
       password: "secure-pass",
     }),
     {},

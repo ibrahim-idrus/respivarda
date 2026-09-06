@@ -26,7 +26,7 @@ export function getAdminCredentials(): { emails: string[]; passwordHash: string 
     throw new Error("ADMIN_PASSWORD minimal 12 karakter.");
   }
   return {
-    emails: [primaryEmail, "operator@smokewatch.id"],
+    emails: [primaryEmail, "operator@respivarda.id"],
     passwordHash: passwordHash(password, getAdminSecret()),
   };
 }
